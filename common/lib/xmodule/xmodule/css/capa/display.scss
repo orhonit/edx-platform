@@ -1,5 +1,51 @@
-$annotation-yellow: rgba(255,255,10,0.3);
+// capa - styling 
+// ====================
 
+// Table of Contents 
+// * +Variables - Capa
+// * +Extends - Capa
+// * +Mixins - Status Icon - Capa
+// * +Resets - Deprecate Please
+// * +Problem - Base
+// * +Problem - Choice Group
+// * +Problem - Misc, Unclassified Mess
+// * +Problem - CodeMirror
+// * +Problem - Misc, Unclassified Mess Part 2
+// * +Problem - Rubric
+// * +Problem - Annotation
+// * +Problem - Choice Text Group
+
+// +Variables - Capa
+// ==================== 
+$annotation-yellow: rgba(255,255,10,0.3);
+$correct: $green-d1;
+$incorrect: $red; 
+
+// +Extends - Capa
+// ==================== 
+// Duplicated from _mixins.scss due to xmodule compilation, inheritance issues
+%use-font-awesome {
+  font-family: FontAwesome;
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  speak: none;
+}
+
+// +Mixins - Status Icon - Capa
+// ==================== 
+@mixin status-icon($color: $gray, $fontAwesomeIcon: "\f00d"){
+  
+  &:after {
+    @extend %use-font-awesome;
+    @include margin-left(17px);
+    color: $color;
+    font-size: 1.2em;
+    content: $fontAwesomeIcon;
+  }
+}
+
+// +Resets - Deprecate Please
+// ==================== 
 h2 {
   margin-top: 0;
   margin-bottom: ($baseline*0.75);
@@ -19,10 +65,9 @@ h2 {
   }
 }
 
-
 iframe[seamless]{
   overflow: hidden;
-  padding: 0px;
+  padding: 0;
   border: 0px none transparent;
   background-color: transparent;
 }
@@ -39,6 +84,8 @@ div.problem-progress {
   font-size: em(16);
 }
 
+// +Problem - Base
+// ==================== 
 div.problem {
   @media print {
     display: block;
@@ -53,7 +100,11 @@ div.problem {
   .inline {
     display: inline;
   }
+}
 
+// +Problem - Choice Group
+// ==================== 
+div.problem {
   .choicegroup {
     @include clearfix();
     min-width: 100px;
@@ -61,43 +112,52 @@ div.problem {
     width: 100px;
 
     label {
-      @include float(left);
+      @include box-sizing(border-box);
+      display: inline-block;
       clear: both;
-      margin-bottom: ($baseline/4);
+      width: 100%;
+      border: 2px solid $gray-l4;
+      border-radius: 3px;
+      margin-bottom: ($baseline/2);
+      padding: ($baseline/2);
 
       &.choicegroup_correct {
-        &:after {
-          margin-left: ($baseline*0.75);
-          content: url('../images/correct-icon.png');
+        @include status-icon($correct, "\f00c");
+        border: 2px solid $correct;
+
+        // keep green for correct answers on hover. 
+        &:hover {
+          border-color: $correct;
         }
       }
 
       &.choicegroup_incorrect {
-        &:after {
-          margin-left: ($baseline*0.75);
-          content: url('../images/incorrect-icon.png');
+        @include status-icon($incorrect, "\f00d");
+        border: 2px solid $incorrect;
+
+        // keep red for incorrect answers on hover. 
+        &:hover {
+          border-color: $incorrect;
         }
+      }
+
+      &:hover {
+        border: 2px solid $blue-l1;
       }
     }
 
     .indicator_container {
-      @include float(left);
+      min-height: 1px;
       width: 25px;
-      height: 1px;
-      @include margin-right(15px);
     }
 
     fieldset {
       @include box-sizing(border-box);
-      margin: 0px 0px $baseline;
-      @include padding-left($baseline);
-      @include border-left(1px solid #ddd);
     }
 
     input[type="radio"],
     input[type="checkbox"] {
-      @include float(left);
-      @include margin(4px, 8px, 0, 0);
+      @include margin(($baseline/4) ($baseline/2) ($baseline/4) ($baseline/4));
     }
 
     text {
@@ -105,7 +165,47 @@ div.problem {
       margin-left: 25px;
     }
   }
+}
 
+
+// +Problem - Status Indicators 
+// ==================== 
+// Summary status indicators shown after the input area 
+div.problem { 
+
+  .indicator_container {
+
+    .status {
+      width: 20px;
+      height: 20px;
+
+      // CASE: correct answer
+      &.correct {
+        @include status-icon($correct, "\f00c");
+      }
+
+      // CASE: incorrect answer
+      &.incorrect {
+        @include status-icon($incorrect, "\f00d");
+      }
+
+      // CASE: unanswered
+      &.unanswered {
+        @include status-icon($gray-l4, "\f128");
+      }
+
+      // CASE: processing
+      &.processing {
+        // add once spinner is rotated through animations
+        //@include status-icon($gray-d1, "\f110", 0);
+      }
+    }
+  }
+}
+
+// +Problem - Misc, Unclassified Mess
+// ==================== 
+div.problem { 
   ol.enumerate {
     li {
       &:before {
@@ -151,7 +251,9 @@ div.problem {
     }
   }
 
+  // known classes using this div: .indicator_container, moved to section above
   div {
+
     p {
       &.answer {
         margin-top: -2px;
@@ -205,7 +307,21 @@ div.problem {
       }
     }
 
-    &.incorrect, &.incomplete, &.ui-icon-close {
+    &.ui-icon-close {
+      p.status {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        background: url('../images/incorrect-icon.png') center center no-repeat;
+      }
+
+      input {
+        border-color: red;
+      }
+    }
+
+    &.incorrect, &.incomplete {
+
       p.status {
         display: inline-block;
         width: 20px;
@@ -267,10 +383,18 @@ div.problem {
           background: #f1f1f1;
         }
       }
+    } 
+
+    // Hides equation previews in symbolic response problems when printing
+    [id^='display'].equation {
+      @media print {
+        display:none;
+      }
     }
 
+    //TO-DO: review and deprecate all these styles within span {}
     span {
-      &.unanswered, &.ui-icon-bullet {
+      &.ui-icon-bullet {
         display: inline-block;
         position: relative;
         top: 4px;
@@ -288,7 +412,7 @@ div.problem {
         background: url('../images/spinner.gif') center center no-repeat;
       }
 
-      &.correct, &.ui-icon-check {
+      &.ui-icon-check {
         display: inline-block;
         position: relative;
         top: 3px;
@@ -306,7 +430,7 @@ div.problem {
         background: url('../images/partially-correct-icon.png') center center no-repeat;
       }
 
-      &.incorrect, &.incomplete, &.ui-icon-close {
+      &.incomplete, &.ui-icon-close {
         display: inline-block;
         position: relative;
         top: 3px;
@@ -317,8 +441,8 @@ div.problem {
     }
 
     .reload {
-      float:right;
-      margin: $baseline/2;
+      @include float(right);
+      margin: ($baseline/2);
     }
 
 
@@ -541,6 +665,11 @@ div.problem {
       white-space: pre;
     }
   }
+}
+
+// +Problem - CodeMirror
+// ==================== 
+div.problem { 
 
   .CodeMirror {
     border: 1px solid black;
@@ -591,7 +720,50 @@ div.problem {
   .CodeMirror-scroll {
     margin-right: 0px;
   }
+}
 
+// +Problem - Actions
+// ==================== 
+div.problem .action {
+  margin-top: $baseline;
+
+  .save, .check, .show, .reset {
+    @include margin-right($baseline/2);
+    height: ($baseline*2);
+    vertical-align: middle;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .save {
+    @extend .blue-button !optional;
+  }
+
+  .show {
+
+    .show-label {
+      font-weight: 600;
+      font-size: 1.0em;
+    }
+  }
+
+  .submission_feedback {
+    // background: #F3F3F3;
+    // border: 1px solid #ddd;
+    // border-radius: 3px;
+    // padding: 8px 12px;
+    // margin-top: ($baseline/2);
+    display: inline-block;
+    margin-top: 8px;
+    @include margin-left($baseline/2);
+    color: $gray-d1;
+    font-style: italic;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+// +Problem - Misc, Unclassified Mess Part 2
+// ==================== 
+div.problem { 
   hr {
     float: none;
     clear: both;
@@ -619,42 +791,6 @@ div.problem {
     margin: lh() 0;
     padding: lh();
     border: 1px solid $gray-l3;
-  }
-
-  div.action {
-    margin-top: $baseline;
-
-    .save, .check, .show, .reset {
-      height: ($baseline*2);
-      vertical-align: middle;
-      font-weight: 600;
-    }
-
-    .save {
-      @extend .blue-button !optional;
-    }
-
-    .show {
-
-      .show-label {
-        font-weight: 600;
-        font-size: 1.0em;
-      }
-    }
-
-    .submission_feedback {
-      // background: #F3F3F3;
-      // border: 1px solid #ddd;
-      // border-radius: 3px;
-      // padding: 8px 12px;
-      // margin-top: ($baseline/2);
-      display: inline-block;
-      margin-top: 8px;
-      @include margin-left($baseline/2);
-      color: #666;
-      font-style: italic;
-      -webkit-font-smoothing: antialiased;
-    }
   }
 
   .detailed-solution {
@@ -904,7 +1040,12 @@ div.problem {
       }
     }
   }
+}
 
+
+// +Problem - Rubric
+// ==================== 
+div.problem {
   .rubric {
     tr {
       margin: ($baseline/2) 0;
@@ -957,7 +1098,11 @@ div.problem {
       display: none;
     }
   }
+}
 
+// +Problem - Annotation
+// ==================== 
+div.problem {
   .annotation-input {
     margin: 0 0 1em 0;
     border: 1px solid $gray-l3;
@@ -1055,8 +1200,12 @@ div.problem {
       }
     }
   }
+}
 
-  .choicetextgroup{
+// +Problem - Choice Text Group
+// ==================== 
+div.problem {
+  .choicetextgroup {
     @extend .choicegroup;
 
     input[type="text"]{
