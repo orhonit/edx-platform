@@ -255,7 +255,7 @@ def footer(request):
         raise Http404
 
     # Use the content type to decide what representation to serve
-    content_type = request.META.get('HTTP_ACCEPT')
+    accepts = request.META.get('HTTP_ACCEPT', '*/*')
 
     # Show the OpenEdX logo in the footer
     show_openedx_logo = bool(request.GET.get('show-openedx-logo', False))
@@ -265,10 +265,10 @@ def footer(request):
     with translation.override(language):
 
         # Render the footer information based on the extension
-        if 'text/html' in content_type or '*/*' in content_type:
+        if 'text/html' in accepts or '*/*' in accepts:
             content = _render_footer_html(show_openedx_logo)
-            return HttpResponse(content, status=200)
-        elif 'application/json' in content_type:
+            return HttpResponse(content, status=200, content_type="text/html; charset=utf-8")
+        elif 'application/json' in accepts:
             footer_dict = branding_api.get_footer(is_secure=request.is_secure())
             return JsonResponse(footer_dict, 200, content_type="application/json; charset=utf-8")
         else:

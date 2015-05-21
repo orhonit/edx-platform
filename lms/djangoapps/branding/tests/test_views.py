@@ -1,10 +1,8 @@
 # encoding: utf-8
 """Tests of Branding API views. """
-import os
 import contextlib
 import json
 import urllib
-from path import path  # pylint: disable=no-name-in-module
 from django.test import TestCase
 from django.core.urlresolvers import reverse
 from django.conf import settings
@@ -19,93 +17,38 @@ from branding.models import BrandingApiConfig
 class TestFooter(TestCase):
     """Test API end-point for retrieving the footer. """
 
-    # We don't collect static files for unit tests,
-    # so the files we expect to exist won't.
-    # Instead, we create the files as part
-    # of the test setup.  This has two advantages:
-    #
-    # 1) It's fast.
-    # 2) We can easily verify which file was used.
-    #
-    # To achieve (2), we write the file path as the
-    # content of the file, then assert that the response
-    # from the server contains the expected path.
-    #
-    FAKE_STATIC_FILES = [
-        (settings.STATIC_ROOT / name).abspath()
-        for name in [
-            path("js") / settings.FOOTER_JS,
-            path("css") / settings.FOOTER_CSS['openedx']['ltr'],
-            path("css") / settings.FOOTER_CSS['openedx']['rtl'],
-            path("css") / settings.FOOTER_CSS['edx']['ltr'],
-            path("css") / settings.FOOTER_CSS['edx']['rtl'],
-        ]
-    ]
-
-    @classmethod
-    def setUpClass(cls):
-        """Create the fake static files. """
-        super(TestFooter, cls).setUpClass()
-
-        # Ensure that the static files directory exists
-        for folder_path in ["js", "css"]:
-            full_path = (settings.STATIC_ROOT / folder_path).abspath()
-            if not os.path.exists(full_path):
-                os.makedirs(full_path)
-
-        # Create the fake static files
-        # The content of each file is just the path to the file,
-        # so we can check this in the response we receive
-        # from the server.
-        for static_path in cls.FAKE_STATIC_FILES:
-            with open(static_path, "w") as static_file:
-                static_file.write(static_path)
-
-    @classmethod
-    def tearDownClass(cls):
-        """Remove the fake static files we created. """
-        super(TestFooter, cls).tearDownClass()
-        for static_path in cls.FAKE_STATIC_FILES:
-            os.remove(static_path)
-
     def setUp(self):
         """Clear the configuration cache. """
         super(TestFooter, self).setUp()
         cache.clear()
 
-    @ddt.data("", "css", "js", "html")
-    def test_feature_flag(self, extension):
+    @ddt.data("*/*", "text/html", "application/json")
+    def test_feature_flag(self, accepts):
         self._set_feature_flag(False)
-        resp = self._get_footer(extension=extension)
+        resp = self._get_footer(accepts=accepts)
         self.assertEqual(resp.status_code, 404)
 
     @ddt.data(
         # Open source version
-        (False, "", "application/json; charset=utf-8", "Open edX"),
-        (False, "css", "text/css", settings.FOOTER_CSS['openedx']['ltr']),
-        (False, "js", "text/javascript", settings.FOOTER_JS),
-        (False, "html", "text/html; charset=utf-8", "Open edX"),
+        (False, "application/json", "application/json; charset=utf-8", "Open edX"),
+        (False, "text/html", "text/html; charset=utf-8", settings.FOOTER_CSS['openedx']['ltr']),
+        (False, "text/html", "text/html; charset=utf-8", settings.FOOTER_JS),
+        (False, "text/html", "text/html; charset=utf-8", "Open edX"),
 
         # EdX.org version
-        (True, "", "application/json; charset=utf-8", "edX Inc"),
-        (True, "css", "text/css", settings.FOOTER_CSS['edx']['ltr']),
-        (True, "js", "text/javascript", settings.FOOTER_JS),
-        (True, "html", "text/html; charset=utf-8", "edX Inc"),
+        (True, "application/json", "application/json; charset=utf-8", "edX Inc"),
+        (True, "text/html", "text/html; charset=utf-8", settings.FOOTER_CSS['edx']['ltr']),
+        (True, "text/html", "text/html; charset=utf-8", settings.FOOTER_JS),
+        (True, "text/html", "text/html; charset=utf-8", "edX Inc"),
     )
     @ddt.unpack
-    def test_footer_content_types(self, is_edx_domain, extension, content_type, content):
+    def test_footer_content_types(self, is_edx_domain, accepts, content_type, content):
         self._set_feature_flag(True)
         with self._set_is_edx_domain(is_edx_domain):
-            resp = self._get_footer(extension=extension)
+            resp = self._get_footer(accepts=accepts)
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp["Content-Type"], content_type)
-
-        # Check that the response contains the expected content.
-        # For rendered content (HTML / json), we just check for some string
-        # that we expect to be in the output.  For static files (CSS / JS)
-        # we check for the path that we wrote to the file when creating
-        # the test fixtures.
         self.assertIn(content, resp.content)
 
     @mock.patch.dict(settings.FEATURES, {'ENABLE_FOOTER_MOBILE_APP_LINKS': True})
@@ -192,13 +135,9 @@ class TestFooter(TestCase):
         self._set_feature_flag(True)
 
         with self._set_is_edx_domain(is_edx_domain):
-            resp = self._get_footer(extension="css", params={'language': language})
+            resp = self._get_footer(accepts="text/html", params={'language': language})
 
         self.assertEqual(resp.status_code, 200)
-
-        # Check that the static path is in the content of the response.
-        # (we wrote the path into the files when creating them in
-        # the test setup).
         self.assertIn(static_path, resp.content)
 
     @ddt.data(
@@ -216,7 +155,7 @@ class TestFooter(TestCase):
 
         with self._set_is_edx_domain(is_edx_domain):
             params = {'show-openedx-logo': 1} if show_logo else {}
-            resp = self._get_footer(extension="html", params=params)
+            resp = self._get_footer(accepts="text/html", params=params)
 
         self.assertEqual(resp.status_code, 200)
 
@@ -230,12 +169,9 @@ class TestFooter(TestCase):
         config = BrandingApiConfig(enabled=enabled)
         config.save()
 
-    def _get_footer(self, extension="", params=None):
+    def _get_footer(self, accepts="application/json", params=None):
         """Retrieve the footer. """
         url = reverse("branding_footer")
-
-        if extension:
-            url = u"{url}.{ext}".format(url=url, ext=extension)
 
         if params is not None:
             url = u"{url}?{params}".format(
@@ -243,7 +179,7 @@ class TestFooter(TestCase):
                 params=urllib.urlencode(params)
             )
 
-        return self.client.get(url)
+        return self.client.get(url, HTTP_ACCEPT=accepts)
 
     @contextlib.contextmanager
     def _set_is_edx_domain(self, is_edx_domain):
