@@ -52,17 +52,28 @@ class SessionCookieExchangeView(APIView):
     authentication_classes = (OAuth2AuthenticationAllowInactiveUser,)
     permission_classes = (permissions.IsAuthenticated,)
 
+    @staticmethod
+    def _get_path_of_arbitrary_backend_for_user(user):
+        """
+        Return the path to the first found authentication backend that recognizes the given user.
+        """
+        for backend_path in settings.AUTHENTICATION_BACKENDS:
+            backend = auth.load_backend(backend_path)
+            if backend.get_user(user.id):
+                return backend_path
+        return None
+
     @method_decorator(csrf_exempt)
-    def get(self, request):
-        request.user.backend = get_backend_for_user(request.user)
+    def post(self, request):
+        """
+        Handler for the POST method to this view.
+        """
+        # The django login method stores the user's id in request.session[SESSION_KEY] and the
+        # path to the user's authentication backend in request.session[BACKEND_SESSION_KEY].
+        # The login method assumes the backend path had been previously stored in request.user.backend
+        # in the 'authenticate' call.  However, not all authentication providers do so.
+        # So we explicitly populate the request.user.backend field here.
+        if not getattr(request.user, 'backend', None):
+            request.user.backend = self._get_path_of_arbitrary_backend_for_user(request.user)
         login(request, request.user)  # login generates and stores the user's cookies in the session
         return HttpResponse(status=204)  # cookies stored in the session are returned with the response
-
-
-def get_backend_for_user(user):
-    for backend_path in settings.AUTHENTICATION_BACKENDS:
-        backend = auth.load_backend(backend_path)
-        if backend.get_user(user.id):
-            return backend
-    return None
-

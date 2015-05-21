@@ -123,11 +123,11 @@ class TestSessionCookieExchangeView(TestCase):
     """
     def setUp(self):
         self.user = UserFactory()
-        self.oauth2_client = Client.objects.create(client_type=0)
+        self.oauth2_client = Client.objects.create(client_type=provider.constants.CONFIDENTIAL)
 
     def _verify_response(self, access_token, expected_status_code, expected_num_cookies):
         url = reverse("exchange_session_cookie")
-        response = self.client.get(url, HTTP_AUTHORIZATION="Bearer {0}".format(access_token))
+        response = self.client.post(url, HTTP_AUTHORIZATION="Bearer {0}".format(access_token))
         self.assertEqual(response.status_code, expected_status_code)
         self.assertEqual(len(response.cookies), expected_num_cookies)
 
@@ -138,6 +138,10 @@ class TestSessionCookieExchangeView(TestCase):
             user=self.user,
         )
         self._verify_response(access_token, expected_status_code=204, expected_num_cookies=1)
+        self.assertEqual(len(self.client.cookies), 1)
+        self.assertIsNotNone(self.client.session.session_key)
 
     def test_unauthenticated(self):
         self._verify_response("invalid_token", expected_status_code=401, expected_num_cookies=0)
+        self.assertEqual(len(self.client.cookies), 0)
+        self.assertNotIn("session_key", self.client.session)
