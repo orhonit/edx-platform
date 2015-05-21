@@ -999,7 +999,7 @@ def is_advanced_component_present(course, advanced_components):
     when request.ADVANCED_COMPONENT_POLICY_KEY is malformed (not iterable)
     """
     for ac_type in advanced_components:
-        if ac_type in course.advanced_components and ac_type in ADVANCED_COMPONENT_TYPES:
+        if ac_type in course.advanced_modules and ac_type in ADVANCED_COMPONENT_TYPES:
             return True
 
 
@@ -1016,9 +1016,6 @@ def _refresh_course_tabs(request, course_module):
     """
     tab_component_map = {
         # 'tab_type': (check_function, list_of_checked_components_or_values),
-
-        # open ended tab by combinedopendended or peergrading module
-        'open_ended': (is_advanced_component_present, OPEN_ENDED_COMPONENT_TYPES),
         # notes tab
         'notes': (is_advanced_component_present, NOTE_COMPONENT_TYPES),
     }

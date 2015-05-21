@@ -78,6 +78,8 @@ class StaffGradingTab(CourseViewType):
     def is_enabled(cls, course, settings, user=None):  # pylint: disable=unused-argument
         if not user:
             return True
+        if "combinedopenended" not in course.advanced_modules:
+            return False
         return has_access(user, 'staff', course, course.id)
 
 
@@ -96,6 +98,8 @@ class PeerGradingTab(CourseViewType):
     def is_enabled(cls, course, settings, user=None):  # pylint: disable=unused-argument
         if not user:
             return True
+        if "combinedopenended" not in course.advanced_modules:
+            return False
         return user.is_authenticated()
 
 
@@ -114,6 +118,8 @@ class OpenEndedGradingTab(CourseViewType):
     def is_enabled(cls, course, settings, user=None):  # pylint: disable=unused-argument
         if not user:
             return True
+        if "combinedopenended" not in course.advanced_modules:
+            return False
         return user.is_authenticated()
 
 
