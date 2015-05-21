@@ -5,6 +5,7 @@ Implement CourseTab
 from abc import ABCMeta
 
 from xblock.fields import List
+from openedx.core.lib.plugins.api import PluginError
 
 # We should only scrape strings for i18n in this file, since the target language is known only when
 # they are rendered in the template.  So ugettext gets called in the template.
@@ -170,43 +171,22 @@ class CourseTab(object):
         Raises:
             InvalidTabsException if the given tab doesn't have the right keys.
         """
-        available_tab_types = CourseTabManager.get_tab_types()
-        tab_type_name = tab_dict.get('type')
-        if tab_type_name not in available_tab_types:
-            raise InvalidTabsException(
-                'Unknown tab type {0}. Known types: {1}'.format(tab_type_name, available_tab_types)
-            )
-        tab_type = available_tab_types[tab_dict['type']]
-        tab_type.validate(tab_dict)
         # TODO: don't import openedx capabilities from common
-        from openedx.core.djangoapps.course_views.course_views import CourseViewType
+        from openedx.core.djangoapps.course_views.course_views import CourseViewType, CourseViewTypeManager
+        tab_type_name = tab_dict.get('type')
+        try:
+            tab_type = CourseViewTypeManager.get_plugin(tab_type_name)
+        except PluginError:
+            raise InvalidTabsException(
+                'Unknown tab type {tab_type_name}. Known types: {tab_types}'.format(
+                    tab_type_name=tab_type_name,
+                    tab_types=CourseViewTypeManager.get_course_view_types())
+            )
+        tab_type.validate(tab_dict)
         if issubclass(tab_type, CourseViewType):
             return CourseViewTab(tab_type, tab_dict=tab_dict)
         else:
             return tab_type(tab_dict=tab_dict)
-
-
-class CourseTabManager(object):
-    """
-    A manager that handles the set of available course tabs.
-    """
-
-    @classmethod
-    def get_tab_types(cls):
-        """
-        Returns the list of available tab types.
-        """
-        if not hasattr(cls, "_tab_types"):
-            tab_types = {}
-
-            # Add any registered course views
-            # TODO: don't import openedx capabilities from common
-            from openedx.core.djangoapps.course_views.course_views import CourseViewTypeManager
-            for course_view_type in CourseViewTypeManager.get_available_plugins().values():
-                tab_types[course_view_type.name] = course_view_type
-
-            cls._tab_types = tab_types
-        return cls._tab_types
 
 
 class CourseViewTab(CourseTab):

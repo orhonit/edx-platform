@@ -25,9 +25,7 @@ class CourseViewType(object):
     view_name = None
     is_persistent = False
     is_hideable = False
-
-    # The course field that indicates that this feature is enabled
-    feature_flag_field_name = None
+    priority = None
 
     @classmethod
     def is_enabled(cls, course, settings, user=None):  # pylint: disable=unused-argument
@@ -57,6 +55,34 @@ class CourseViewTypeManager(PluginManager):
     All course view types should implement `CourseViewType`.
     """
     NAMESPACE = COURSE_VIEW_TYPE_NAMESPACE
+
+    @classmethod
+    def get_course_view_types(cls):
+        """
+        Returns the list of available course view types in their canonical order.
+        """
+        def compare_course_view_types(first_type, second_type):
+            """Compares two course view types, for use in sorting."""
+            first_priority = first_type.priority
+            second_priority = second_type.priority
+            if not first_priority == second_priority:
+                if not first_priority:
+                    return -1
+                elif not second_priority:
+                    return 1
+                else:
+                    return first_priority - second_priority
+            first_name = first_type.name
+            second_name = second_type.name
+            if first_name < second_name:
+                return -1
+            elif first_name == second_name:
+                return 0
+            else:
+                return 1
+        course_view_types = CourseViewTypeManager.get_available_plugins().values()
+        course_view_types.sort(cmp=compare_course_view_types)
+        return course_view_types
 
 
 def is_user_staff(course, user):
@@ -109,6 +135,7 @@ class CoursewareTab(EnrolledOrStaffTab):
     type = 'courseware'
     name = 'courseware'
     is_movable = False
+    priority = 10
 
     def __init__(self, tab_dict=None):  # pylint: disable=unused-argument
         super(CoursewareTab, self).__init__(
@@ -127,6 +154,7 @@ class CourseInfoTab(CourseTab):
     type = 'course_info'
     name = 'course_info'
     is_movable = False
+    priority = 20
 
     def __init__(self, tab_dict=None):
         super(CourseInfoTab, self).__init__(
@@ -148,6 +176,7 @@ class ProgressTab(EnrolledOrStaffTab):
 
     type = 'progress'
     name = 'progress'
+    priority = None
 
     def __init__(self, tab_dict=None):
         super(ProgressTab, self).__init__(
@@ -173,6 +202,7 @@ class DiscussionTab(EnrolledOrStaffTab):
 
     type = 'discussion'
     name = 'discussion'
+    priority = None
 
     def __init__(self, tab_dict=None):
         super(DiscussionTab, self).__init__(
@@ -242,6 +272,7 @@ class ExternalDiscussionTab(LinkTab):
 
     type = 'external_discussion'
     name = 'external_discussion'
+    priority = None
 
     def __init__(self, tab_dict=None, link_value=None):
         super(ExternalDiscussionTab, self).__init__(
@@ -258,6 +289,7 @@ class ExternalLinkTab(LinkTab):
     """
     type = 'external_link'
     name = 'external_link'
+    priority = None
 
     def __init__(self, tab_dict):
         super(ExternalLinkTab, self).__init__(
@@ -273,6 +305,7 @@ class StaticTab(CourseTab):
     """
     type = 'static_tab'
     name = 'static_tab'
+    priority = None
 
     @classmethod
     def validate(cls, tab_dict, raise_error=True):
@@ -323,6 +356,7 @@ class SingleTextbookTab(CourseTab):
     name = 'single_textbook'
     is_movable = False
     is_collection_item = True
+    priority = None
 
     def to_json(self):
         raise NotImplementedError('SingleTextbookTab should not be serialized.')
@@ -357,6 +391,7 @@ class TextbookTabs(TextbookTabsBase):
     """
     type = 'textbooks'
     name = 'textbooks'
+    priority = None
 
     def __init__(self, tab_dict=None):  # pylint: disable=unused-argument
         super(TextbookTabs, self).__init__(
@@ -383,6 +418,7 @@ class PDFTextbookTabs(TextbookTabsBase):
     """
     type = 'pdf_textbooks'
     name = 'pdf_textbooks'
+    priority = None
 
     def __init__(self, tab_dict=None):  # pylint: disable=unused-argument
         super(PDFTextbookTabs, self).__init__(
@@ -406,6 +442,7 @@ class HtmlTextbookTabs(TextbookTabsBase):
     """
     type = 'html_textbooks'
     name = 'html_textbooks'
+    priority = None
 
     def __init__(self, tab_dict=None):  # pylint: disable=unused-argument
         super(HtmlTextbookTabs, self).__init__(
@@ -429,6 +466,7 @@ class SyllabusTab(CourseTab):
     """
     type = 'syllabus'
     name = 'syllabus'
+    priority = None
 
     def is_enabled(self, course, settings, user=None):
         return hasattr(course, 'syllabus_present') and course.syllabus_present

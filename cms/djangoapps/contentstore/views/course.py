@@ -16,15 +16,14 @@ from django.core.urlresolvers import reverse
 from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse, Http404
 from util.json_request import JsonResponse, JsonResponseBadRequest
 from util.date_utils import get_default_time_display
-from util.db import generate_int_id, MYSQL_MAX_INT
 from edxmako.shortcuts import render_to_response
 
 from xmodule.course_module import DEFAULT_START_DATE
 from xmodule.error_module import ErrorDescriptor
 from xmodule.modulestore.django import modulestore
 from xmodule.contentstore.content import StaticContent
-from xmodule.tabs import CourseTab, CourseTabManager
-from openedx.core.djangoapps.course_views.course_views import PDFTextbookTabs
+from xmodule.tabs import CourseTab
+from openedx.core.djangoapps.course_views.course_views import CourseViewTypeManager, PDFTextbookTabs
 from xmodule.modulestore import EdxJSONEncoder
 from xmodule.modulestore.exceptions import ItemNotFoundError, DuplicateCourseError
 from opaque_keys import InvalidKeyError
@@ -47,7 +46,6 @@ from contentstore.utils import (
     get_lms_link_for_item,
     reverse_course_url,
     reverse_library_url,
-    reverse_usage_url,
     reverse_url,
     remove_all_instructors,
     EXTRA_TAB_PANELS,
@@ -59,9 +57,7 @@ from util.json_request import expect_json
 from util.string_utils import _has_non_ascii_characters
 from student.auth import has_studio_write_access, has_studio_read_access
 from .component import (
-    OPEN_ENDED_COMPONENT_TYPES,
     NOTE_COMPONENT_TYPES,
-    ADVANCED_COMPONENT_POLICY_KEY,
     SPLIT_TEST_COMPONENT_TYPE,
     ADVANCED_COMPONENT_TYPES,
 )
@@ -1028,7 +1024,7 @@ def _refresh_course_tabs(request, course_module):
     course_tabs = copy.copy(course_module.tabs)
 
     # Additionally update any persistent tabs provided by course views
-    for tab_type in CourseTabManager.get_tab_types().values():
+    for tab_type in CourseViewTypeManager.get_course_view_types():
         if issubclass(tab_type, CourseViewType) and tab_type.is_persistent:
             tab_enabled = tab_type.is_enabled(course_module, settings, user=request.user)
             update_tab(course_tabs, tab_type, tab_enabled)
