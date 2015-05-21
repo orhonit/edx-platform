@@ -19,7 +19,7 @@ from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.modulestore.xml_exporter import export_course_to_xml
 from xmodule.modulestore.tests.test_split_w_old_mongo import SplitWMongoCourseBootstrapper
-from xmodule.modulestore.tests.factories import check_mongo_calls, mongo_uses_error_check
+from xmodule.modulestore.tests.factories import check_mongo_calls, mongo_uses_error_check, CourseFactory, ItemFactory
 from xmodule.modulestore.tests.test_cross_modulestore_import_export import (
     MongoContentstoreBuilder, MODULESTORE_SETUPS,
     DRAFT_MODULESTORE_SETUP, SPLIT_MODULESTORE_SETUP, MongoModulestoreBuilder,
@@ -158,13 +158,13 @@ class TestPublish(SplitWMongoCourseBootstrapper):
         self.assertTrue(self.draft_mongo.has_item(other_child_loc), "Oops, lost moved item")
 
 
-class UniversalTestSetup(unittest.TestCase):
+class DraftPublishedOpTestCourseSetup(unittest.TestCase):
     """
     This class exists to test XML import and export between different modulestore
     classes.
     """
 
-    def _create_course(self, store, course_key):
+    def _create_course(self, store):
         """
         Create the course that'll be published below. The course has a binary structure, meaning:
         The course has two chapters (chapter_0 & chapter_1),
@@ -201,76 +201,64 @@ class UniversalTestSetup(unittest.TestCase):
                 )
             }
 
+        def _add_course_db_entry(parent_type, parent_id, block_id, block_type, idx, child_block_type, child_block_id_base):
+            """
+            Add a single entry for the course DB referenced by the tests below.
+            """
+            self.course_db.update(
+                {
+                    (block_type, block_id): _make_course_db_entry(
+                        parent_type, parent_id, block_id, idx, child_block_type, child_block_id_base
+                    )
+                }
+            )
+
+        def _create_binary_structure_items(parent_type, block_type, num_items, child_block_type):
+            """
+            Add a level of the binary course structure by creating the items as children of the proper parents.
+            """
+            parent_id = 'course'
+            for idx in xrange(0, num_items):
+                if parent_type != 'course':
+                    parent_id = _make_block_id(parent_type, idx / 2)
+                parent_item = getattr(self, parent_id)
+                block_id = _make_block_id(block_type, idx)
+                #setattr(self, block_id, _create_child(parent_item, block_type, block_id))
+                setattr(self, block_id, ItemFactory.create(
+                    parent_location=parent_item.location,
+                    category=block_type,
+                    modulestore=store,
+                    publish_item=False,
+                    location=self.course.id.make_usage_key(block_type, block_id))
+                )
+                _add_course_db_entry(parent_type, parent_id, block_id, block_type, idx, child_block_type, child_block_type)
+
         # Create all the course items on the draft branch.
         with store.branch_setting(ModuleStoreEnum.Branch.draft_preferred):
             # Create course.
-            self.course = store.create_course(course_key.org, course_key.course, course_key.run, self.user_id)
+            self.course = CourseFactory.create(org='test_org', number='999', run='test_run', display_name='My Test Course', modulestore=store)
+            #self.course = store.create_course(course_key.org, course_key.course, course_key.run, self.user_id)
 
             # Create chapters.
-            block_type = 'chapter'
-            for idx in xrange(0, 2):
-                parent_type = 'course'
-                parent_id = 'course'
-                block_id = _make_block_id(block_type, idx)
-                setattr(self, block_id, _create_child(self.course, block_type, block_id))
-                db_entry = {
-                    (block_type, block_id): _make_course_db_entry(
-                        parent_type, parent_id, block_id, idx, 'sequential', 'sequential'
-                    )
-                }
-                self.course_db.update(db_entry)
+            _create_binary_structure_items('course', 'chapter', 2, 'sequential')
+            _create_binary_structure_items('chapter', 'sequential', 4, 'vertical')
+            _create_binary_structure_items('sequential', 'vertical', 8, 'html')
+            _create_binary_structure_items('vertical', 'html', 16, '')
 
-            # Create sequentials.
-            block_type = 'sequential'
-            for idx in xrange(0, 4):
-                parent_type = 'chapter'
-                parent_id = _make_block_id(parent_type, idx / 2)
-                parent_item = getattr(self, parent_id)
-                block_id = _make_block_id(block_type, idx)
-                setattr(self, block_id, _create_child(parent_item, block_type, block_id))
-                db_entry = {
-                    (block_type, block_id): _make_course_db_entry(
-                        parent_type, parent_id, block_id, idx, 'vertical', 'vertical'
-                    )
-                }
-                self.course_db.update(db_entry)
+        # Create a list of all verticals for convenience.
+        block_type = 'vertical'
+        for idx in xrange(0, 8):
+            block_id = _make_block_id(block_type, idx)
+            self.all_verticals.append((block_type, block_id))
 
-            # Create verticals.
-            block_type = 'vertical'
-            for idx in xrange(0, 8):
-                parent_type = 'sequential'
-                parent_id = _make_block_id(parent_type, idx / 2)
-                parent_item = getattr(self, parent_id)
-                block_id = _make_block_id(block_type, idx)
-                setattr(self, block_id, _create_child(parent_item, block_type, block_id))
-                db_entry = {
-                    (block_type, block_id): _make_course_db_entry(
-                        parent_type, parent_id, block_id, idx, 'html', 'unit'
-                    )
-                }
-                self.course_db.update(db_entry)
-                self.all_verticals.append((block_type, block_id))
-
-            # Create html units.
-            block_type = 'html'
-            for idx in xrange(0, 16):
-                parent_type = 'vertical'
-                parent_id = _make_block_id(parent_type, idx / 2)
-                parent_item = getattr(self, parent_id)
-                block_id = _make_block_id('unit', idx)
-                setattr(self, block_id, _create_child(parent_item, 'html', block_id))
-                db_entry = {
-                    (block_type, block_id): _make_course_db_entry(
-                        parent_type, parent_id, block_id, idx, '', ''
-                    )
-                }
-                self.course_db.update(db_entry)
-                self.all_units.append((block_type, block_id))
+        # Create a list of all html units for convenience.
+        block_type = 'html'
+        for idx in xrange(0, 16):
+            block_id = _make_block_id(block_type, idx)
+            self.all_units.append((block_type, block_id))
 
     def setUp(self):
         self.user_id = -3
-        self.course_key = CourseLocator('test_org', 'test_course', 'test_run')
-        self.course = None
 
         # For convenience, maintain a list of (block_type, block_id) pairs for all verticals/units.
         self.all_verticals = []
@@ -281,7 +269,7 @@ class UniversalTestSetup(unittest.TestCase):
         # data needed to check the OLX.
         self.course_db = {}
 
-        super(UniversalTestSetup, self).setUp()
+        super(DraftPublishedOpTestCourseSetup, self).setUp()
 
 
 class OLXFormatChecker(unittest.TestCase):
@@ -456,12 +444,8 @@ class OLXFormatChecker(unittest.TestCase):
                 index_in_children_list,
                 msg="Index within {} must be passed for draft {} item!".format(parent_type, block_type)
             )
-            if block_type != 'html':
-                attrs['parent_url'] = '({DEPRECATED_PARENT_KEY}|{PARENT_KEY})'.format(
-                    DEPRECATED_PARENT_KEY=course_key.replace(deprecated=True).make_usage_key(parent_type, parent_id),
-                    PARENT_KEY=unicode(course_key.replace(deprecated=False).make_usage_key(parent_type, parent_id)).replace('+', '\\+'),
-                )
-                attrs['index_in_children_list'] = '{}'.format(index_in_children_list)
+            parent_url_regex = unicode(course_key.replace().make_usage_key(parent_type, parent_id)).replace('+', '\\+')
+            child_index_regex = str(index_in_children_list)
 
         # Form the checked attributes based on the block type.
         if block_type == 'html':
@@ -496,12 +480,12 @@ class OLXFormatChecker(unittest.TestCase):
             self.assertIsNotNone(block_params)
             (block_type, block_id) = block_data
             if draft:
-                xml_parse_regex = self._make_xml_parse_regex(block_type, self.course_key, draft=True, **block_params)
+                xml_parse_regex = self._make_xml_parse_regex(block_type, self.course.id, draft=True, **block_params)
                 self.assertOLXContent(block_type, block_id, draft=True, xml_parse=xml_parse_regex)
             else:
                 self.assertOLXMissing(block_type, block_id, draft=True)
             if published:
-                xml_parse_regex = self._make_xml_parse_regex(block_type, self.course_key, draft=False, **block_params)
+                xml_parse_regex = self._make_xml_parse_regex(block_type, self.course.id, draft=False, **block_params)
                 self.assertOLXContent(block_type, block_id, draft=False, xml_parse=xml_parse_regex)
             else:
                 self.assertOLXMissing(block_type, block_id, draft=False)
@@ -534,7 +518,7 @@ class OLXFormatChecker(unittest.TestCase):
             self.assertOLXMissing(block_type, block_id, draft=False)
 
 
-class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
+class DraftPublishedOpBaseTestSetup(OLXFormatChecker, DraftPublishedOpTestCourseSetup):
     """
     Setup base class for draft/published/OLX tests.
     """
@@ -543,7 +527,7 @@ class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
     EXPORTED_COURSE_AFTER_DIR_NAME = 'exported_course_after_{}'
 
     def setUp(self):
-        super(UniversalTestProcedure, self).setUp()
+        super(DraftPublishedOpBaseTestSetup, self).setUp()
         self.export_dir = self.EXPORTED_COURSE_BEFORE_DIR_NAME
         self.root_export_dir = None
         self.contentstore = None
@@ -561,7 +545,7 @@ class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
             rmtree(export_dir, ignore_errors=True)
 
     @contextmanager
-    def _setup_test(self, modulestore_builder, course_key):
+    def _setup_test(self, modulestore_builder):
         """
         Create the export dir, contentstore, and modulestore for a test.
         """
@@ -571,7 +555,7 @@ class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
                 # Construct the modulestore for storing the first import (using the previously created contentstore)
                 with modulestore_builder.build(contentstore=self.contentstore) as self.store:
                     # Create the course.
-                    self.course = self._create_course(self.store, course_key)
+                    self._create_course(self.store)
                     yield
 
     def _export_if_not_already(self):
@@ -584,7 +568,7 @@ class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
             export_course_to_xml(
                 self.store,
                 self.contentstore,
-                self.course_key,
+                self.course.id,
                 self.root_export_dir,
                 self.export_dir,
             )
@@ -594,28 +578,28 @@ class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
         """
         ``True`` when modulestore under test is a SplitMongoModuleStore.
         """
-        return self.store.get_modulestore_type(self.course_key) == ModuleStoreEnum.Type.split
+        return self.store.get_modulestore_type(self.course.id) == ModuleStoreEnum.Type.split
 
     @property
     def is_old_mongo_modulestore(self):
         """
         ``True`` when modulestore under test is a MongoModuleStore.
         """
-        return self.store.get_modulestore_type(self.course_key) == ModuleStoreEnum.Type.mongo
+        return self.store.get_modulestore_type(self.course.id) == ModuleStoreEnum.Type.mongo
 
     def assertOLXContent(self, block_type, block_id, **kwargs):
         """
         Check that the course has been exported. If not, export it, then call the check.
         """
         self._export_if_not_already()
-        super(UniversalTestProcedure, self).assertOLXContent(block_type, block_id, **kwargs)
+        super(DraftPublishedOpBaseTestSetup, self).assertOLXContent(block_type, block_id, **kwargs)
 
     def assertOLXMissing(self, block_type, block_id, **kwargs):
         """
         Check that the course has been exported. If not, export it, then call the check.
         """
         self._export_if_not_already()
-        super(UniversalTestProcedure, self).assertOLXMissing(block_type, block_id, **kwargs)
+        super(DraftPublishedOpBaseTestSetup, self).assertOLXMissing(block_type, block_id, **kwargs)
 
     def _make_new_export_dir_name(self):
         """
@@ -631,7 +615,7 @@ class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
             # Get the specified test item from the draft branch.
             with self.store.branch_setting(ModuleStoreEnum.Branch.draft_preferred):
                 test_item = self.store.get_item(
-                    self.course_key.make_usage_key(block_type=block_type, block_id=block_id)
+                    self.course.id.make_usage_key(block_type=block_type, block_id=block_id)
                 )
             # Publish the draft item to the published branch.
             self.store.publish(test_item.location, self.user_id)
@@ -646,7 +630,7 @@ class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
             # Get the specified test item from the published branch.
             with self.store.branch_setting(ModuleStoreEnum.Branch.published_only):
                 test_item = self.store.get_item(
-                    self.course_key.make_usage_key(block_type=block_type, block_id=block_id)
+                    self.course.id.make_usage_key(block_type=block_type, block_id=block_id)
                 )
             # Unpublish the draft item from the published branch.
             self.store.unpublish(test_item.location, self.user_id)
@@ -661,7 +645,7 @@ class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
             # Get the specified test item from the draft branch.
             with self.store.branch_setting(ModuleStoreEnum.Branch.draft_preferred):
                 test_item = self.store.get_item(
-                    self.course_key.make_usage_key(block_type=block_type, block_id=block_id)
+                    self.course.id.make_usage_key(block_type=block_type, block_id=block_id)
                 )
             # Delete the item from the specified branch.
             self.store.delete_item(test_item.location, self.user_id, revision=revision)
@@ -676,7 +660,7 @@ class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
             # Get the specified test item from the draft branch.
             with self.store.branch_setting(ModuleStoreEnum.Branch.published_only):
                 test_item = self.store.get_item(
-                    self.course_key.make_usage_key(block_type=block_type, block_id=block_id)
+                    self.course.id.make_usage_key(block_type=block_type, block_id=block_id)
                 )
             # Convert the item from the specified branch from published to draft.
             self.store.convert_to_draft(test_item.location, self.user_id)
@@ -691,7 +675,7 @@ class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
             # Get the specified test item from the draft branch.
             with self.store.branch_setting(ModuleStoreEnum.Branch.draft_preferred):
                 test_item = self.store.get_item(
-                    self.course_key.make_usage_key(block_type=block_type, block_id=block_id)
+                    self.course.id.make_usage_key(block_type=block_type, block_id=block_id)
                 )
             # Revert the item from the specified branch from draft to published.
             self.store.revert_to_published(test_item.location, self.user_id)
@@ -700,13 +684,13 @@ class UniversalTestProcedure(OLXFormatChecker, UniversalTestSetup):
 
 
 @ddt.ddt
-class ElementalPublishingTests(UniversalTestProcedure):
+class ElementalPublishingTests(DraftPublishedOpBaseTestSetup):
     """
     Tests for the publish() operation.
     """
     @ddt.data(*MODULESTORE_SETUPS)
     def test_autopublished_chapters_sequentials(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
             # When a course is created out of chapters/sequentials/verticals/units
             # as this course is, the chapters/sequentials are auto-published
             # and the verticals/units are not.
@@ -725,37 +709,37 @@ class ElementalPublishingTests(UniversalTestProcedure):
 
     @ddt.data(DRAFT_MODULESTORE_SETUP, MongoModulestoreBuilder())
     def test_publish_old_mongo_unit(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             # MODULESTORE_DIFFERENCE:
             # In old Mongo, you can successfully publish an item whose parent
             # isn't published.
-            self.publish((('html', 'unit00'),))
+            self.publish((('html', 'html00'),))
 
     @ddt.data(SPLIT_MODULESTORE_SETUP)
     def test_publish_split_unit(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             # MODULESTORE_DIFFERENCE:
             # In Split, you cannot publish an item whose parents are unpublished.
             # Split will raise an exception when the item's parent(s) aren't found
             # in the published branch.
             with self.assertRaises(ItemNotFoundError):
-                self.publish((('html', 'unit00'),))
+                self.publish((('html', 'html00'),))
 
     @ddt.data(*MODULESTORE_SETUPS)
     def test_publish_multiple_verticals(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_parents_to_publish = (
                 ('vertical', 'vertical03'),
                 ('vertical', 'vertical04'),
             )
             block_list_publish = block_list_parents_to_publish + (
-                ('html', 'unit06'),
-                ('html', 'unit07'),
-                ('html', 'unit08'),
-                ('html', 'unit09'),
+                ('html', 'html06'),
+                ('html', 'html07'),
+                ('html', 'html08'),
+                ('html', 'html09'),
             )
             block_list_untouched = (
                 ('vertical', 'vertical00'),
@@ -764,18 +748,18 @@ class ElementalPublishingTests(UniversalTestProcedure):
                 ('vertical', 'vertical05'),
                 ('vertical', 'vertical06'),
                 ('vertical', 'vertical07'),
-                ('html', 'unit00'),
-                ('html', 'unit01'),
-                ('html', 'unit02'),
-                ('html', 'unit03'),
-                ('html', 'unit04'),
-                ('html', 'unit05'),
-                ('html', 'unit10'),
-                ('html', 'unit11'),
-                ('html', 'unit12'),
-                ('html', 'unit13'),
-                ('html', 'unit14'),
-                ('html', 'unit15'),
+                ('html', 'html00'),
+                ('html', 'html01'),
+                ('html', 'html02'),
+                ('html', 'html03'),
+                ('html', 'html04'),
+                ('html', 'html05'),
+                ('html', 'html10'),
+                ('html', 'html11'),
+                ('html', 'html12'),
+                ('html', 'html13'),
+                ('html', 'html14'),
+                ('html', 'html15'),
             )
 
             # Ensure that both groups of verticals and children are drafts in the exported OLX.
@@ -796,7 +780,7 @@ class ElementalPublishingTests(UniversalTestProcedure):
         Sequentials are auto-published. But publishing them explictly publishes their children,
         changing the OLX of each sequential - the vertical children are in the sequential post-publish.
         """
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_autopublished = (
                 ('sequential', 'sequential00'),
@@ -804,10 +788,10 @@ class ElementalPublishingTests(UniversalTestProcedure):
             block_list = (
                 ('vertical', 'vertical00'),
                 ('vertical', 'vertical01'),
-                ('html', 'unit00'),
-                ('html', 'unit01'),
-                ('html', 'unit02'),
-                ('html', 'unit03'),
+                ('html', 'html00'),
+                ('html', 'html01'),
+                ('html', 'html02'),
+                ('html', 'html03'),
             )
             # Ensure that the autopublished sequential exists as such in the exported OLX.
             self.assertOLXIsPublishedOnly(block_list_autopublished)
@@ -825,7 +809,7 @@ class ElementalPublishingTests(UniversalTestProcedure):
         """
         Chapters are auto-published.
         """
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_autopublished = (
                 ('chapter', 'chapter00'),
@@ -835,28 +819,28 @@ class ElementalPublishingTests(UniversalTestProcedure):
                 ('vertical', 'vertical01'),
                 ('vertical', 'vertical02'),
                 ('vertical', 'vertical03'),
-                ('html', 'unit00'),
-                ('html', 'unit01'),
-                ('html', 'unit02'),
-                ('html', 'unit03'),
-                ('html', 'unit04'),
-                ('html', 'unit05'),
-                ('html', 'unit06'),
-                ('html', 'unit07'),
+                ('html', 'html00'),
+                ('html', 'html01'),
+                ('html', 'html02'),
+                ('html', 'html03'),
+                ('html', 'html04'),
+                ('html', 'html05'),
+                ('html', 'html06'),
+                ('html', 'html07'),
             )
             block_list_untouched = (
                 ('vertical', 'vertical04'),
                 ('vertical', 'vertical05'),
                 ('vertical', 'vertical06'),
                 ('vertical', 'vertical07'),
-                ('html', 'unit08'),
-                ('html', 'unit09'),
-                ('html', 'unit10'),
-                ('html', 'unit11'),
-                ('html', 'unit12'),
-                ('html', 'unit13'),
-                ('html', 'unit14'),
-                ('html', 'unit15'),
+                ('html', 'html08'),
+                ('html', 'html09'),
+                ('html', 'html10'),
+                ('html', 'html11'),
+                ('html', 'html12'),
+                ('html', 'html13'),
+                ('html', 'html14'),
+                ('html', 'html15'),
             )
             # Ensure that the autopublished chapter exists as such in the exported OLX.
             self.assertOLXIsPublishedOnly(block_list_autopublished)
@@ -874,16 +858,16 @@ class ElementalPublishingTests(UniversalTestProcedure):
 
 
 @ddt.ddt
-class ElementalUnpublishingTests(UniversalTestProcedure):
+class ElementalUnpublishingTests(DraftPublishedOpBaseTestSetup):
     """
     Tests for the unpublish() operation.
     """
     @ddt.data(*MODULESTORE_SETUPS)
     def test_unpublish_draft_unit(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_unpublish = (
-                ('html', 'unit08'),
+                ('html', 'html08'),
             )
             # The unit is a draft.
             self.assertOLXIsDraftOnly(block_list_to_unpublish)
@@ -893,11 +877,11 @@ class ElementalUnpublishingTests(UniversalTestProcedure):
 
     @ddt.data(*MODULESTORE_SETUPS)
     def test_unpublish_published_units(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_unpublish = (
-                ('html', 'unit08'),
-                ('html', 'unit09'),
+                ('html', 'html08'),
+                ('html', 'html09'),
             )
             block_list_parent = (
                 ('vertical', 'vertical04'),
@@ -928,7 +912,7 @@ class ElementalUnpublishingTests(UniversalTestProcedure):
 
     @ddt.data(*MODULESTORE_SETUPS)
     def test_unpublish_draft_vertical(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_unpublish = (
                 ('vertical', 'vertical02'),
@@ -941,28 +925,28 @@ class ElementalUnpublishingTests(UniversalTestProcedure):
 
     @ddt.data(*MODULESTORE_SETUPS)
     def test_unpublish_published_vertical(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_unpublish = (
                 ('vertical', 'vertical02'),
             )
             block_list_unpublished_children = (
-                ('html', 'unit04'),
-                ('html', 'unit05'),
+                ('html', 'html04'),
+                ('html', 'html05'),
             )
             block_list_untouched = (
                 ('vertical', 'vertical04'),
                 ('vertical', 'vertical05'),
                 ('vertical', 'vertical06'),
                 ('vertical', 'vertical07'),
-                ('html', 'unit08'),
-                ('html', 'unit09'),
-                ('html', 'unit10'),
-                ('html', 'unit11'),
-                ('html', 'unit12'),
-                ('html', 'unit13'),
-                ('html', 'unit14'),
-                ('html', 'unit15'),
+                ('html', 'html08'),
+                ('html', 'html09'),
+                ('html', 'html10'),
+                ('html', 'html11'),
+                ('html', 'html12'),
+                ('html', 'html13'),
+                ('html', 'html14'),
+                ('html', 'html15'),
             )
             # At first, no vertical or unit is published.
             self.assertOLXIsDraftOnly(block_list_to_unpublish)
@@ -983,7 +967,7 @@ class ElementalUnpublishingTests(UniversalTestProcedure):
 
     @ddt.data(DRAFT_MODULESTORE_SETUP, MongoModulestoreBuilder())
     def test_unpublish_old_mongo_draft_sequential(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             # MODULESTORE_DIFFERENCE:
             # In old Mongo, you cannot successfully unpublish an autopublished sequential.
@@ -996,7 +980,7 @@ class ElementalUnpublishingTests(UniversalTestProcedure):
 
     @ddt.data(SPLIT_MODULESTORE_SETUP)
     def test_unpublish_split_draft_sequential(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             # MODULESTORE_DIFFERENCE:
             # In Split, the sequential is deleted.
@@ -1008,10 +992,10 @@ class ElementalUnpublishingTests(UniversalTestProcedure):
             block_list_unpublished_children = (
                 ('vertical', 'vertical06'),
                 ('vertical', 'vertical07'),
-                ('html', 'unit12'),
-                ('html', 'unit13'),
-                ('html', 'unit14'),
-                ('html', 'unit15'),
+                ('html', 'html12'),
+                ('html', 'html13'),
+                ('html', 'html14'),
+                ('html', 'html15'),
             )
             # The autopublished sequential is published - its children are draft.
             self.assertOLXIsPublishedOnly(block_list_to_unpublish)
@@ -1026,7 +1010,7 @@ class ElementalUnpublishingTests(UniversalTestProcedure):
 
 
 @ddt.ddt
-class ElementalDeleteItemTests(UniversalTestProcedure):
+class ElementalDeleteItemTests(DraftPublishedOpBaseTestSetup):
     """
     Tests for the delete_item() operation.
     """
@@ -1047,10 +1031,10 @@ class ElementalDeleteItemTests(UniversalTestProcedure):
     ))
     @ddt.unpack
     def test_delete_draft_unit(self, modulestore_builder, revision_and_result):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_delete = (
-                ('html', 'unit08'),
+                ('html', 'html08'),
             )
             (revision, result) = revision_and_result
             # The unit is a draft.
@@ -1085,14 +1069,14 @@ class ElementalDeleteItemTests(UniversalTestProcedure):
     ))
     @ddt.unpack
     def test_old_mongo_delete_draft_vertical(self, modulestore_builder, revision_and_result):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_delete = (
                 ('vertical', 'vertical03'),
             )
             block_list_children = (
-                ('html', 'unit06'),
-                ('html', 'unit07'),
+                ('html', 'html06'),
+                ('html', 'html07'),
             )
             (revision, result) = revision_and_result
             # The vertical is a draft.
@@ -1127,14 +1111,14 @@ class ElementalDeleteItemTests(UniversalTestProcedure):
     ))
     @ddt.unpack
     def test_split_delete_draft_vertical(self, modulestore_builder, revision_and_result):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_delete = (
                 ('vertical', 'vertical03'),
             )
             block_list_children = (
-                ('html', 'unit06'),
-                ('html', 'unit07'),
+                ('html', 'html06'),
+                ('html', 'html07'),
             )
             (revision, result) = revision_and_result
             # The vertical is a draft.
@@ -1160,7 +1144,7 @@ class ElementalDeleteItemTests(UniversalTestProcedure):
     ))
     @ddt.unpack
     def test_delete_sequential(self, modulestore_builder, revision_and_result):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_delete = (
                 ('sequential', 'sequential03'),
@@ -1168,10 +1152,10 @@ class ElementalDeleteItemTests(UniversalTestProcedure):
             block_list_children = (
                 ('vertical', 'vertical06'),
                 ('vertical', 'vertical07'),
-                ('html', 'unit12'),
-                ('html', 'unit13'),
-                ('html', 'unit14'),
-                ('html', 'unit15'),
+                ('html', 'html12'),
+                ('html', 'html13'),
+                ('html', 'html14'),
+                ('html', 'html15'),
             )
             (revision, result) = revision_and_result
             # Sequentials are auto-published.
@@ -1203,7 +1187,7 @@ class ElementalDeleteItemTests(UniversalTestProcedure):
     ))
     @ddt.unpack
     def test_delete_chapter(self, modulestore_builder, revision_and_result):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_delete = (
                 ('chapter', 'chapter01'),
@@ -1217,14 +1201,14 @@ class ElementalDeleteItemTests(UniversalTestProcedure):
                 ('vertical', 'vertical05'),
                 ('vertical', 'vertical06'),
                 ('vertical', 'vertical07'),
-                ('html', 'unit08'),
-                ('html', 'unit09'),
-                ('html', 'unit10'),
-                ('html', 'unit11'),
-                ('html', 'unit12'),
-                ('html', 'unit13'),
-                ('html', 'unit14'),
-                ('html', 'unit15'),
+                ('html', 'html08'),
+                ('html', 'html09'),
+                ('html', 'html10'),
+                ('html', 'html11'),
+                ('html', 'html12'),
+                ('html', 'html13'),
+                ('html', 'html14'),
+                ('html', 'html15'),
             )
             (revision, result) = revision_and_result
             # Chapters are auto-published.
@@ -1249,13 +1233,13 @@ class ElementalDeleteItemTests(UniversalTestProcedure):
 
 
 @ddt.ddt
-class ElementalConvertToDraftTests(UniversalTestProcedure):
+class ElementalConvertToDraftTests(DraftPublishedOpBaseTestSetup):
     """
     Tests for the convert_to_draft() operation.
     """
     @ddt.data(*MODULESTORE_SETUPS)
     def test_convert_to_draft_published_vertical(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_convert = (
                 ('vertical', 'vertical02'),
@@ -1282,7 +1266,7 @@ class ElementalConvertToDraftTests(UniversalTestProcedure):
 
     @ddt.data(*MODULESTORE_SETUPS)
     def test_convert_to_draft_autopublished_sequential(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_convert = (
                 ('sequential', 'sequential03'),
@@ -1306,13 +1290,13 @@ class ElementalConvertToDraftTests(UniversalTestProcedure):
 
 
 @ddt.ddt
-class ElementalRevertToPublishedTests(UniversalTestProcedure):
+class ElementalRevertToPublishedTests(DraftPublishedOpBaseTestSetup):
     """
     Tests for the revert_to_published() operation.
     """
     @ddt.data(*MODULESTORE_SETUPS)
     def test_revert_to_published_unpublished_vertical(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_revert = (
                 ('vertical', 'vertical02'),
@@ -1326,7 +1310,7 @@ class ElementalRevertToPublishedTests(UniversalTestProcedure):
 
     @ddt.data(*MODULESTORE_SETUPS)
     def test_revert_to_published_published_vertical(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_revert = (
                 ('vertical', 'vertical02'),
@@ -1344,7 +1328,7 @@ class ElementalRevertToPublishedTests(UniversalTestProcedure):
 
     @ddt.data(*MODULESTORE_SETUPS)
     def test_revert_to_published_vertical(self, modulestore_builder):
-        with self._setup_test(modulestore_builder, self.course_key):
+        with self._setup_test(modulestore_builder):
 
             block_list_to_revert = (
                 ('vertical', 'vertical02'),
@@ -1359,7 +1343,7 @@ class ElementalRevertToPublishedTests(UniversalTestProcedure):
             # Change something in the draft item and update it.
             with self.store.branch_setting(ModuleStoreEnum.Branch.draft_preferred):
                 item = self.store.get_item(
-                    self.course_key.make_usage_key(block_type='vertical', block_id='vertical02')
+                    self.course.id.make_usage_key(block_type='vertical', block_id='vertical02')
                 )
                 item.display_name = 'SNAFU'
                 self.store.update_item(item, self.user_id)
