@@ -1024,12 +1024,6 @@ def results_callback(request):
             "Result {} not understood. Known results: PASS, FAIL, SYSTEM FAIL".format(result)
         )
 
-    # If this is a reverification, log an event
-    if attempt.window:
-        course_id = attempt.window.course_id
-        course_enrollment = CourseEnrollment.get_or_create_enrollment(attempt.user, course_id)
-        course_enrollment.emit_event(EVENT_NAME_USER_REVERIFICATION_REVIEWED_BY_SOFTWARESECURE)
-
     incourse_reverify_enabled = InCourseReverificationConfiguration.current().enabled
     if incourse_reverify_enabled:
         checkpoints = VerificationCheckpoint.objects.filter(photo_verification=attempt).all()
@@ -1195,7 +1189,7 @@ def midcourse_reverify_dash(request):
 
     statuses = ["approved", "pending", "must_reverify", "denied"]
 
-    reverifications = reverification_info(course_enrollment_pairs, user, statuses)
+    reverifications = None
 
     context = {
         "user_full_name": user.profile.name,

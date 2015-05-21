@@ -1076,17 +1076,7 @@ def fetch_reverify_banner_info(request, course_key):
     """
     Fetches needed context variable to display reverification banner in courseware
     """
-    reverifications = defaultdict(list)
-    user = request.user
-    if not user.id:
-        return reverifications
-    enrollment = CourseEnrollment.get_enrollment(request.user, course_key)
-    if enrollment is not None:
-        course = modulestore().get_course(course_key)
-        info = single_course_reverification_info(user, course, enrollment)
-        if info:
-            reverifications[info.status].append(info)
-    return reverifications
+    return None
 
 
 @login_required
