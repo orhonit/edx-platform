@@ -404,7 +404,7 @@ class OLXFormatChecker(unittest.TestCase):
         if xml_to_check:
             self.assertIn(xml_to_check, block_contents)
         if xml_re_to_check:
-            self.assertRegexMatches(xml_re_to_check, block_contents)
+            self.assertRegexpMatches(xml_re_to_check, block_contents)
         if xml_parse:
             self._assert_parsed_xml(block_contents, xml_parse)
 
