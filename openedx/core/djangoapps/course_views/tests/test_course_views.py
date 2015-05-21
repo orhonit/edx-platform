@@ -353,30 +353,6 @@ class TextbooksTestCase(TabTestCase):
         self.check_can_display_results(tab, for_authenticated_users_only=True, expected_value=False)
 
 
-class NotesTestCase(TabTestCase):
-    """Test cases for Notes Tab."""
-
-    def check_notes_tab(self):
-        """Helper function for verifying the notes tab."""
-        return self.check_tab(
-            tab_class=tabs.NotesTab,
-            dict_tab={'type': tabs.NotesTab.type, 'name': 'same'},
-            expected_link=self.reverse('notes', args=[self.course.id.to_deprecated_string()]),
-            expected_tab_id=tabs.NotesTab.type,
-            invalid_dict_tab=self.fake_dict_tab,
-        )
-
-    def test_notes_tabs_enabled(self):
-        self.settings.FEATURES['ENABLE_STUDENT_NOTES'] = True
-        tab = self.check_notes_tab()
-        self.check_can_display_results(tab, for_authenticated_users_only=True)
-
-    def test_notes_tabs_disabled(self):
-        self.settings.FEATURES['ENABLE_STUDENT_NOTES'] = False
-        tab = self.check_notes_tab()
-        self.check_can_display_results(tab, expected_value=False)
-
-
 class SyllabusTestCase(TabTestCase):
     """Test cases for Syllabus Tab."""
 

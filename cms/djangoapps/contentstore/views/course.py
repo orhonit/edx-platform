@@ -1014,11 +1014,6 @@ def _refresh_course_tabs(request, course_module):
     """
     Automatically adds/removes tabs if changes to the course require them.
     """
-    tab_component_map = {
-        # 'tab_type': (check_function, list_of_checked_components_or_values),
-        # notes tab
-        'notes': (is_advanced_component_present, NOTE_COMPONENT_TYPES),
-    }
 
     def update_tab(tabs, tab_type, tab_enabled):
         """
@@ -1031,16 +1026,6 @@ def _refresh_course_tabs(request, course_module):
             tabs.remove(tab_panel)
 
     course_tabs = copy.copy(course_module.tabs)
-
-    for tab_type in tab_component_map.keys():
-        check, component_types = tab_component_map[tab_type]
-        try:
-            tab_enabled = check(course_module, component_types)
-        except TypeError:
-            # user has failed to put iterable value into advanced component list.
-            # return immediately and let validation handle.
-            return
-        update_tab(course_tabs, tab_type, tab_enabled)
 
     # Additionally update any persistent tabs provided by course views
     for tab_type in CourseTabManager.get_tab_types().values():

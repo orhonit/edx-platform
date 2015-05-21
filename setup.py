@@ -36,7 +36,7 @@ setup(
             'peer_grading = lms.djangoapps.open_ended_grading.views:PeerGradingTab',
             'staff_grading = lms.djangoapps.open_ended_grading.views:StaffGradingTab',
             'open_ended = lms.djangoapps.open_ended_grading.views:OpenEndedGradingTab',
-            'notes = openedx.core.djangoapps.course_views.course_views:NotesTab',
+            'notes = lms.djangoapps.notes.views:NotesTab',
             'syllabus = openedx.core.djangoapps.course_views.course_views:SyllabusTab',
         ],
         "openedx.user_partition_scheme": [

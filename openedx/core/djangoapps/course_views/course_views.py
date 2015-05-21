@@ -440,25 +440,3 @@ class SyllabusTab(CourseTab):
             tab_id=self.type,
             link_func=link_reverse_func(self.type),
         )
-
-
-class NotesTab(AuthenticatedCourseTab):
-    """
-    A tab for the course notes.
-    """
-    type = 'notes'
-    name = 'notes'
-
-    def is_enabled(self, course, settings, user=None):
-        return settings.FEATURES.get('ENABLE_STUDENT_NOTES')
-
-    def __init__(self, tab_dict=None):
-        super(NotesTab, self).__init__(
-            name=tab_dict['name'],
-            tab_id=self.type,
-            link_func=link_reverse_func(self.type),
-        )
-
-    @classmethod
-    def validate(cls, tab_dict, raise_error=True):
-        return super(NotesTab, cls).validate(tab_dict, raise_error) and need_name(tab_dict, raise_error)
