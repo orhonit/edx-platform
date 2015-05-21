@@ -157,9 +157,10 @@ def footer(request):
     (for example, on the marketing site and blog).
 
     It can be used in one of two ways:
-    1) The client renders the footer from a JSON description.
-    2) The client includes JavaScript and CSS from this end-point,
-        and the JavaScript renders the footer within the DOM.
+    1) A client renders the footer from a JSON description.
+    2) A browser loads an HTML representation of the footer
+        and injects it into the DOM.  The HTML includes
+        CSS and JavaScript links.
 
     In case (2), we assume that the following dependencies
     are included on the page:
@@ -170,6 +171,7 @@ def footer(request):
     Example: Retrieving the footer as JSON
 
         GET /api/branding/v1/footer
+        Accepts: application/json
 
         {
             "navigation_links": [
@@ -217,38 +219,22 @@ def footer(request):
         }
 
 
-    Example: Including the footer within a page (TODO)
+    Example: Retrieving the footer as HTML
 
-        <html>
-            <head>
-                <!-- Include JQuery and FontAwesome here -->
-                <title>Footer API Test</title>
-            </head>
-            <body>
-                <h1>Footer API Test</h1>
-                <p>This is a test of the footer API.</p>
-                <div id="edx-branding-footer"></div>
-
-                <!-- Load this at the bottom of the page so it doesn't block the DOM from loading -->
-                <link type="text/css" rel="stylesheet" href="http://example.com/api/v1/branding/footer.css"></link>
-                <script type="text/javascript" src="http://example.com/api/v1/branding/footer.js"></script>
-            </body>
-        </html>
+        GET /api/branding/v1/footer
+        Accepts: text/html
 
 
     Example: Including the footer with the "Powered by OpenEdX" logo
 
-        TODO
-
-
-    Example: Including the footer and specifying the OpenEdX instance
-
-        TODO
+        GET /api/branding/v1/footer?show-openedx-logo=1
+        Accepts: text/html
 
 
     Example: Retrieving the footer in a particular language
 
-        TODO
+        GET /api/branding/v1/footer?language=en
+        Accepts: text/html
 
     """
     if not branding_api.is_enabled():
