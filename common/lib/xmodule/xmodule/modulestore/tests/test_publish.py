@@ -336,6 +336,30 @@ class OLXFormatChecker(unittest.TestCase):
         with open(block_file_path, "r") as file_handle:
             return file_handle.read()
 
+    def assertElementTag(self, element, tag):
+        """
+        Assert than an XML element has a specific tag.
+
+        Arguments:
+            element (ElementTree.Element): the element to check.
+            tag (str): The tag to validate.
+        """
+        self.assertEqual(element.tag, tag)
+
+    def assertElementAttrsSubset(self, element, attrs):
+        """
+        Assert that an XML element has at least the specified set of
+        attributes.
+
+        Arguments:
+            element (ElementTree.Element): the element to check.
+            attrs (dict): A dict mapping {attr: regex} where
+                each value in the dict is a regular expression
+                to match against the named attribute.
+        """
+        for attr, regex in attrs.items():
+            self.assertRegexpMatches(element.get(attr), regex)
+
     def _assert_parsed_xml(self, block_contents, checklist):
         """
         Using a dictionary with the following format:
@@ -349,36 +373,18 @@ class OLXFormatChecker(unittest.TestCase):
         , verify the XML of a particular block in a course export.
         In the above dictionary, 'attrs' is a dict with {attribute:regex} pairs.
         """
-        def _assert_xml_level(xml_root, tag, attrs, children):
-            """
-            Verify one level of the block XML. Called recursively to check other levels (children).
-            """
-            self.assertEqual(xml_root.tag, tag)
-            if attrs:
-                for attr_name, attr_re in attrs.iteritems():
-                    if attr_re:
-                        self.assertIn(attr_name, xml_root.attrib)
-                        attr_re_comp = re.compile(attr_re)
-                        self.assertIsNotNone(
-                            attr_re_comp.search(xml_root.attrib[attr_name]),
-                            msg='Attr {} of tag {} doesn\'t match regex of:\n{}'.format(
-                                attr_name, tag, attr_re
-                            )
-                        )
-            else:
-                # If not checking the attrs, there should be *no* attrs in the XML.
-                self.assertEqual(xml_root.attrib, {})
-            if children:
-                for child in xml_root:
-                    _assert_xml_level(child, children['tag'], children.get('attrs'), children.get('children'))
-            else:
-                # If not checking the children, there should be *no* children in the XML.
-                self.assertEqual([child for child in xml_root], [])
-
         # Parse the XML string into an ElementTree.
         block_tree = ET.fromstring(block_contents)
-        # Now go through and verify the individual tags/attributes/children.
-        _assert_xml_level(block_tree, checklist['tag'], checklist.get('attrs'), checklist.get('children'))
+
+        self.assertElementTag(block_tree, checklist['tag'])
+        self.assertElementAttrsSubset(block_tree, checklist['attrs'])
+
+        if checklist['children']:
+            for child in block_tree:
+                self.assertElementTag(child, checklist['children']['tag'])
+                self.assertElementAttrsSubset(child, checklist['children']['attrs'])
+        else:
+            self.assertEquals(len(block_tree), 0)
 
     def assertOLXContent(self, block_type, block_id, **kwargs):
         """
@@ -432,8 +438,7 @@ class OLXFormatChecker(unittest.TestCase):
         Construct a dictionary containing regular expressions that will
         be used to validate block XML.
         """
-        parent_url_regex = None
-        child_index_regex = None
+        attrs = {}
         if draft:
             # Draft items are expected to have certain XML attributes.
             parent_type = kwargs.pop('parent_type', None)
@@ -451,22 +456,17 @@ class OLXFormatChecker(unittest.TestCase):
                 index_in_children_list,
                 msg="Index within {} must be passed for draft {} item!".format(parent_type, block_type)
             )
-            parent_url_regex = '({DEPRECATED_PARENT_KEY}|{PARENT_KEY})'.format(
-                DEPRECATED_PARENT_KEY=course_key.replace(deprecated=True).make_usage_key(parent_type, parent_id),
-                PARENT_KEY=unicode(course_key.replace(deprecated=False).make_usage_key(parent_type, parent_id)).replace('+', '\\+'),
-            )
-            child_index_regex = '{}'.format(index_in_children_list)
+            if block_type != 'html':
+                attrs['parent_url'] = '({DEPRECATED_PARENT_KEY}|{PARENT_KEY})'.format(
+                    DEPRECATED_PARENT_KEY=course_key.replace(deprecated=True).make_usage_key(parent_type, parent_id),
+                    PARENT_KEY=unicode(course_key.replace(deprecated=False).make_usage_key(parent_type, parent_id)).replace('+', '\\+'),
+                )
+                attrs['index_in_children_list'] = '{}'.format(index_in_children_list)
 
         # Form the checked attributes based on the block type.
-        attrs = {}
         if block_type == 'html':
             filename = kwargs.pop('filename', None)
             attrs.update({'filename': filename})
-        else:
-            attrs.update({
-                'parent_url': parent_url_regex,
-                'index_in_children_list': child_index_regex
-            })
 
         # If children exist, construct regular expressions to check them.
         child_id_regex = None
