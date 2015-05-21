@@ -64,3 +64,9 @@
     % endif
   </footer>
 </div>
+% if footer_css_url:
+<link type="text/css" rel="stylesheet" href="${footer_css_url}"></link>
+% endif
+% if footer_js_url:
+<script type="text/javascript" src="${footer_js_url}"></script>
+% endif

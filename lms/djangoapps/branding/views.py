@@ -1,16 +1,13 @@
 """Views for the branding app. """
 import logging
 
-from path import path  # pylint: disable=no-name-in-module
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse, Http404
 from django.utils import translation
-from staticfiles.finders import find as staticfiles_find
-from staticfiles.storage import staticfiles_storage
 from django.shortcuts import redirect
 from django_future.csrf import ensure_csrf_cookie
-from sendfile import sendfile
+from staticfiles.storage import staticfiles_storage
 
 from edxmako.shortcuts import render_to_response
 import student.views
@@ -116,6 +113,21 @@ def courses(request):
     return courseware.views.courses(request)
 
 
+def _footer_css_name():
+    """Return the name of the footer CSS static file.
+
+    This supports right-to-left languages, as well as
+    both OpenEdX and EdX.org.
+
+    Returns: unicode
+
+    """
+    bidi = 'rtl' if translation.get_language_bidi() else 'ltr'
+    version = 'edx' if settings.FEATURES.get('IS_EDX_DOMAIN') else 'openedx'
+    css_name = settings.FOOTER_CSS[version][bidi]
+    return u"css/{name}".format(name=css_name)
+
+
 def _render_footer_html(show_openedx_logo):
     """Render the footer as HTML.
 
@@ -125,7 +137,11 @@ def _render_footer_html(show_openedx_logo):
     Returns: unicode
 
     """
-    context = {'hide_openedx_link': not show_openedx_logo}
+    context = {
+        'hide_openedx_link': not show_openedx_logo,
+        'footer_css_url': staticfiles_storage.url(_footer_css_name()),
+        'footer_js_url': staticfiles_storage.url(u"js/{name}".format(name=settings.FOOTER_JS)),
+    }
     return (
         render_to_response("footer-edx-v3.html", context)
         if settings.FEATURES.get("IS_EDX_DOMAIN", False)
@@ -133,76 +149,7 @@ def _render_footer_html(show_openedx_logo):
     )
 
 
-def _footer_css_name():
-    """Return the name of the footer CSS static file.
-
-    This takes into account:
-    1) Whether asset pipelining is being used (handles both prod and local dev)
-    2) Text direction (right-to-left support)
-
-    Returns: unicode
-
-    """
-    bidi = 'rtl' if translation.get_language_bidi() else 'ltr'
-    version = 'edx' if settings.FEATURES.get('IS_EDX_DOMAIN') else 'openedx'
-    css_name = settings.FOOTER_CSS[version][bidi]
-
-    # In production, the asset pipeline copies compiled sass
-    # to a css folder.  Unfortunately, this doesn't happen
-    # in devstack, so we load the version of the CSS that
-    # hasn't yet gone through the asset pipeline.
-    return (
-        u"sass/{name}" if settings.DEBUG
-        else u"css/{name}"
-    ).format(name=css_name)
-
-
-def _send_footer_static(request, name):
-    """Send static files for the footer.
-
-    Send static files required for rendering the footer
-    client-side (JavaScript and CSS).
-
-    Ordinarily, clients would load static resources like
-    this from /static/ URLs.  In production, these URLs always
-    include cache-busting hashes.  Since these URLs are meant
-    to be included directly in the DOM, we want a URL
-    that is always available (e.g. /api/v1/branding/footer.css).
-
-    On the other hand, we *don't* want to serve these
-    files directy through Django, because nginx is much
-    faster at this.
-
-    For this reason, we use `django-sendfile` as a compromise.
-    In production, this will use the "X-Accel-Redirect" header
-    to trigger an internal redirect to the static file.
-    That way, Django can resolve the path, but nginx still
-    serves the file.
-
-    If the file can't be found, this will return a 404.
-
-    Arguments:
-        request (HttpRequest)
-        name (unicode): The name of the static file to load
-            (relative to `settings.STATIC_ROOT`)
-
-    Returns:
-        HttpResponse
-    """
-    # In production, we will load assets from the STATIC_ROOT
-    # directory.  In local development, we don't run collectstatic,
-    # so we need to find the files in their original locations.
-    static_path = (
-        staticfiles_find(name) if settings.DEBUG
-        else staticfiles_storage.path(name)
-    )
-    if static_path is None:
-        raise Http404
-
-    return sendfile(request, static_path)
-
-
-def footer(request, extension="json"):
+def footer(request):
     """Retrieve the branded footer.
 
     This end-point provides information about the site footer,
@@ -270,7 +217,7 @@ def footer(request, extension="json"):
         }
 
 
-    Example: Including the footer within a page
+    Example: Including the footer within a page (TODO)
 
         <html>
             <head>
@@ -291,27 +238,24 @@ def footer(request, extension="json"):
 
     Example: Including the footer with the "Powered by OpenEdX" logo
 
-        <div id="edx-branding-footer" data-show-openedx-logo="true"></div>
-        <script type="text/javascript" src="http://example.com/api/v1/branding/footer.js"></script>
+        TODO
 
 
     Example: Including the footer and specifying the OpenEdX instance
 
-        <div id="edx-branding-footer" data-base-url="http://example.com"></div>
-        <script type="text/javascript" src="http://example.com/api/v1/branding/footer.js"></script>
+        TODO
 
 
     Example: Retrieving the footer in a particular language
 
-        GET /api/branding/v1/footer?language=ar
-        The returned response will use Arabic translation strings
-
-        GET /api/branding/v1/footer.css?language=ar
-        The returned CSS will use right-to-left styling.
+        TODO
 
     """
     if not branding_api.is_enabled():
         raise Http404
+
+    # Use the content type to decide what representation to serve
+    content_type = request.META.get('HTTP_ACCEPT')
 
     # Show the OpenEdX logo in the footer
     show_openedx_logo = bool(request.GET.get('show-openedx-logo', False))
@@ -321,15 +265,11 @@ def footer(request, extension="json"):
     with translation.override(language):
 
         # Render the footer information based on the extension
-        if extension == "json":
-            footer_dict = branding_api.get_footer(is_secure=request.is_secure())
-            return JsonResponse(footer_dict, 200, content_type="application/json; charset=utf-8")
-        elif extension == "html":
+        if 'text/html' in content_type or '*/*' in content_type:
             content = _render_footer_html(show_openedx_logo)
             return HttpResponse(content, status=200)
-        elif extension == "css":
-            return _send_footer_static(request, _footer_css_name())
-        elif extension == "js":
-            return _send_footer_static(request, path("js") / settings.FOOTER_JS)
+        elif 'application/json' in content_type:
+            footer_dict = branding_api.get_footer(is_secure=request.is_secure())
+            return JsonResponse(footer_dict, 200, content_type="application/json; charset=utf-8")
         else:
-            raise Http404
+            return HttpResponse(status=406)

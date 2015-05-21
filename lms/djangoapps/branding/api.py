@@ -38,18 +38,6 @@ def is_enabled():
     return BrandingApiConfig.current().enabled
 
 
-def get_base_url(is_secure=True):
-    """Retrieve the base URL for the API, including the protocol and domain.
-
-    Keyword Arguments:
-        is_secure (bool): If True, use https:// in URLs.
-
-    Returns: unicode
-
-    """
-    return _absolute_url(is_secure, "")
-
-
 def get_footer(is_secure=True):
     """Retrieve information used to render the footer.
 

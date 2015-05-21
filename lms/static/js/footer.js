@@ -50,50 +50,12 @@ var edx = edx || {};
                     }
                 }
             },
-
-            footer: {
-                get: function() {
-                    var url = _fn.$el.data('base-url') || 'https://courses.edx.org',
-                        language = _fn.$el.data('language') || false,
-                        showOpenEdXLogo = Boolean(_fn.$el.data('show-openedx-logo')) || false,
-                        params = [];
-
-                    if (showOpenEdXLogo) {
-                        params.push('show-openedx-logo="1"');
-                    }
-
-                    if (language) {
-                        params.push('language=' + language);
-                    }
-
-                    url = url + '/api/v1/branding/footer.html';
-
-                    if (params) {
-                        url = url + '?' + params.join('&');
-                    }
-
-                    $.ajax({
-                        url: url,
-                        type: 'GET',
-                        dataType: 'html',
-                        success: function( data ) {
-                            _fn.footer.render( data );
-                        }
-                    });
-                },
-
-                render: function( html ) {
-                    $(html).replaceAll(_fn.$el);
-                }
-            }
         };
 
         return {
-            load: _fn.init,
             analytics: _fn.analytics.init
         };
     })();
 
-    edx.footer.load();
     edx.footer.analytics();
 })(jQuery);

@@ -12,10 +12,4 @@ urlpatterns = patterns(
         "branding.views.footer",
         name="branding_footer",
     ),
-
-    url(
-        r"^footer\.(?P<extension>json|html|css|js)$",
-        "branding.views.footer",
-        name="branding_footer_ext",
-    ),
 )

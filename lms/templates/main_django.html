@@ -3,7 +3,6 @@
 {% load sekizai_tags i18n microsite %}
 {% load url from future %}
 {% load staticfiles %}
-{% load branding_edx_footer %}
 <html lang="{{LANGUAGE_CODE}}">
 <head>
   <meta charset="UTF-8">
@@ -45,7 +44,22 @@
   {% elif IS_EDX_DOMAIN %}
     {# TODO (ECOM-1339): Remove this check once we switch to the v3 footer permanently. #}
     {% if ENABLE_BRANDING_API %}
-      {% branding_edx_footer %}
+      {% comment %}
+      The EdX branded footer appears on other sites (e.g. marketing and blog).
+      We load it here the same way we load it on other sites:
+      by including JavaScript that loads the footer HTML into the DOM.
+      {% endcomment %}
+      <div id="edx-branding-footer"></div>
+      <script type="text/javascript">
+        $.ajax({
+            url: '/api/v1/branding/footer?show-openedx-logo=1',
+            type: 'GET',
+            dataType: 'html',
+            success: function( data ) {
+                $(data).replaceAll($('#edx-branding-footer'));
+            }
+        });
+      </script>
     {% else %}
       {% include "footer-edx-v2.html" %}
     {% endif %}

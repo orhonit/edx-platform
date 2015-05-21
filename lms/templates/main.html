@@ -154,14 +154,18 @@ dir_rtl = 'rtl' if get_language_bidi() else 'ltr'
             % if branding_api.is_enabled():
               ## The EdX branded footer appears on other sites (e.g. marketing and blog).
               ## We load it here the same way we load it on other sites:
-              ## by including the JavaScript that loads the footer HTML into the DOM.
-              ## Unlike other sites, we don't need to load CSS styles here, since they're
-              ## included automatically in the CSS for the LMS.
-              <div id="edx-branding-footer"
-                   data-base-url="${branding_api.get_base_url(is_secure=is_secure)}"
-                   data-show-openedx-logo="true"
-              ></div>
-              <script type="text/javascript" src="${reverse('branding_footer_ext', kwargs={'extension': 'js'})}"></script>
+              ## by including JavaScript that loads the footer HTML into the DOM.
+              <div id="edx-branding-footer"></div>
+              <script type="text/javascript">
+                $.ajax({
+                    url: '/api/v1/branding/footer?show-openedx-logo=1',
+                    type: 'GET',
+                    dataType: 'html',
+                    success: function( data ) {
+                        $(data).replaceAll($('#edx-branding-footer'));
+                    }
+                });
+              </script>
             % else:
               <%include file="footer-edx-v2.html" />
             % endif
