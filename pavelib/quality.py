@@ -173,7 +173,9 @@ def _get_pep8_violations():
 
     sh('pep8 . | tee {report_dir}/pep8.report -a'.format(report_dir=report_dir))
 
-    count, violations_list = _pep8_violations("{report_dir}/pep8.report".format(report_dir=report_dir))
+    count, violations_list = _pep8_violations(
+        "{report_dir}/pep8.report".format(report_dir=report_dir)
+    )
 
     return (count, violations_list)
 
@@ -263,7 +265,11 @@ def run_jshint(options):
     )
     num_violations = _get_count_from_last_line(jshint_report)
 
-    # Fail number of violations is greater than the limit
+    # Record the metric
+    with open(Env.METRICS_DIR / "jshint", "w") as metric_file:
+        metric_file.write(str(num_violations))
+
+    # Fail if number of violations is greater than the limit
     if num_violations > violations_limit > -1:
         raise Exception(
             "JSHint Failed. Too many violations ({count}).\nThe limit is {violations_limit}.".format(
