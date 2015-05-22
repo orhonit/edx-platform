@@ -11,13 +11,13 @@ class Migration(SchemaMigration):
         # Adding model 'Bookmark'
         db.create_table('bookmarks_bookmark', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
+            ('created', self.gf('model_utils.fields.AutoCreatedField')(default=datetime.datetime.now)),
+            ('modified', self.gf('model_utils.fields.AutoLastModifiedField')(default=datetime.datetime.now)),
             ('user', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['auth.User'])),
             ('course_key', self.gf('xmodule_django.models.CourseKeyField')(max_length=255, db_index=True)),
             ('usage_key', self.gf('xmodule_django.models.LocationKeyField')(max_length=255, db_index=True)),
             ('display_name', self.gf('django.db.models.fields.CharField')(default='', max_length=255)),
-            ('_path', self.gf('django.db.models.fields.TextField')(null=True, db_column='path', blank=True)),
-            ('created', self.gf('django.db.models.fields.DateTimeField')(auto_now_add=True, blank=True)),
-            ('updated', self.gf('django.db.models.fields.DateTimeField')(auto_now=True, blank=True)),
+            ('_path', self.gf('django.db.models.fields.TextField')(db_column='path', blank=True)),
         ))
         db.send_create_signal('bookmarks', ['Bookmark'])
 
@@ -59,12 +59,12 @@ class Migration(SchemaMigration):
         },
         'bookmarks.bookmark': {
             'Meta': {'object_name': 'Bookmark'},
-            '_path': ('django.db.models.fields.TextField', [], {'null': 'True', 'db_column': "'path'", 'blank': 'True'}),
+            '_path': ('django.db.models.fields.TextField', [], {'db_column': "'path'", 'blank': 'True'}),
             'course_key': ('xmodule_django.models.CourseKeyField', [], {'max_length': '255', 'db_index': 'True'}),
-            'created': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
+            'created': ('model_utils.fields.AutoCreatedField', [], {'default': 'datetime.datetime.now'}),
             'display_name': ('django.db.models.fields.CharField', [], {'default': "''", 'max_length': '255'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'updated': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'blank': 'True'}),
+            'modified': ('model_utils.fields.AutoLastModifiedField', [], {'default': 'datetime.datetime.now'}),
             'usage_key': ('xmodule_django.models.LocationKeyField', [], {'max_length': '255', 'db_index': 'True'}),
             'user': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['auth.User']"})
         },

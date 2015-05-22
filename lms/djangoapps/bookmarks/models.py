@@ -7,11 +7,13 @@ import json
 from django.contrib.auth.models import User
 from django.db import models
 
+from model_utils.models import TimeStampedModel
+
 from xmodule.modulestore.django import modulestore
 from xmodule_django.models import CourseKeyField, LocationKeyField
 
 
-class Bookmark(models.Model):
+class Bookmark(TimeStampedModel):
     """
     Bookmarks model.
     """
@@ -20,8 +22,6 @@ class Bookmark(models.Model):
     usage_key = LocationKeyField(max_length=255, db_index=True)
     display_name = models.CharField(max_length=255, default="", help_text="Display name of XBlock")
     _path = models.TextField(db_column='path', blank=True, help_text="JSON, breadcrumbs to the XBlock")
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     @property
     def path(self):

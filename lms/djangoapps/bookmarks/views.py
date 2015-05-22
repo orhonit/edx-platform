@@ -61,7 +61,7 @@ class BookmarksView(ListCreateAPIView):
         * results:  A list of bookmarks returned. Each collection in the list
           contains these fields.
 
-            * id: String. The identifier string for the bookmark": {user_id},{usage_id}.
+            * id: String. The identifier string for the bookmark: {user_id},{usage_id}.
 
             * course_id: String. The identifier string of the bookmark's course.
 
@@ -69,7 +69,7 @@ class BookmarksView(ListCreateAPIView):
 
             * display_name: (optional) String. Display name of the XBlock.
 
-            * path: (optional) List of dicts containing {"usage_id": "", display_name:""} for the XBlocks
+            * path: (optional) List. List of dicts containing {"usage_id": "", display_name:""} for the XBlocks
                 from the top of the course tree till the parent of the bookmarked XBlock.
 
             * created: ISO 8601 String. The timestamp of bookmark's creation.
@@ -176,14 +176,14 @@ class BookmarksDetailView(APIView):
 
     **Example Requests**:
 
-        GET /api/bookmarks/v0/bookmarks/{username},{usage_id}?fields=path&display_name
+        GET /api/bookmarks/v0/bookmarks/{username},{usage_id}/?fields=path&display_name
 
-        DELETE /api/bookmarks/v0/bookmarks/{username},{usage_id}?fields=path&display_name
+        DELETE /api/bookmarks/v0/bookmarks/{username},{usage_id}/
 
-    **Response Values for GET**
-        Users can only delete their own bookmarks
+    **Response for GET**
+        Users can only get their own bookmarks
 
-        * id: String. The identifier string for the bookmark": {user_id},{usage_id}.
+        * id: String. The identifier string for the bookmark: {user_id},{usage_id}.
 
         * course_id: String. The identifier string of the bookmark's course.
 
@@ -197,15 +197,13 @@ class BookmarksDetailView(APIView):
         * created: ISO 8601 String. The timestamp of bookmark's creation.
 
     **Response for DELETE**
+        Users can only delete their own bookmarks
 
         A successful delete returns a 204 and no content.
 
         Users can only delete their own bookmarks. If the requesting user
         does not have username "username", this method will return with a
-        status of 404.
-
-        If the specified bookmark does not exist, this method returns a
-        404.
+        status of 404, Thee same is true in case if a bookmark does not exist.
 
     """
     authentication_classes = (OAuth2Authentication, SessionAuthentication)
