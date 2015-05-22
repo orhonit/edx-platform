@@ -182,19 +182,22 @@ class BookmarksViewTests(BookmarksViewTestsMixin):
     def test_get_bookmarks_with_invalid_data(self):
         """
         Test that requesting bookmarks with invalid data returns a 0 records.
-        Scenarios:
-            1) Invalid course id.
-            2) Without course id.
         """
         # Invalid course id.
         response = self.send_get(client=self.client, url=reverse('bookmarks'), query_parameters='course_id=invalid')
         bookmarks = response.data['results']
         self.assertEqual(len(bookmarks), 0)
 
-        # Without course id.
+    def test_get_all_bookmarks_when_course_id_not_give(self):
+        """
+        Test that requesting bookmarks returns all records for that user.
+        """
+        # Without course id we would return all the bookmarks for that user.
         response = self.send_get(client=self.client, url=reverse('bookmarks'))
         bookmarks = response.data['results']
-        self.assertEqual(len(bookmarks), 0)
+        self.assertEqual(len(bookmarks), 2)
+        self.assert_valid_bookmark_response(bookmarks[0], self.bookmark_2)
+        self.assert_valid_bookmark_response(bookmarks[1], self.bookmark_1)
 
     def test_anonymous_access(self):
         """
@@ -279,7 +282,7 @@ class BookmarksViewTests(BookmarksViewTestsMixin):
             expected_status=400
         )
         self.assertEqual(response.data['user_message'], "Invalid usage id")
-        self.assertEqual(response.data['developer_message'], "Item with usage id not found")
+        self.assertEqual(response.data['developer_message'], "Block with usage_id not found.")
 
     def test_unsupported_methods(self):
         """
