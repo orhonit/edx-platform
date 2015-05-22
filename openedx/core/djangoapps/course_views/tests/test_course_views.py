@@ -181,7 +181,6 @@ class TabListTestCase(TabTestCase):
         unique_tab_types = [
             tabs.CourseInfoTab.type,
             tabs.CoursewareTab.type,
-            tabs.NotesTab.type,
             tabs.TextbookTabs.type,
             tabs.PDFTextbookTabs.type,
             tabs.HtmlTextbookTabs.type,
@@ -211,8 +210,7 @@ class TabListTestCase(TabTestCase):
                 {'type': tabs.HtmlTextbookTabs.type},
                 {'type': tabs.ProgressTab.type, 'name': 'fake_name'},
                 {'type': tabs.StaticTab.type, 'name': 'fake_name', 'url_slug': 'schlug'},
-                {'type': tabs.NotesTab.type, 'name': 'fake_name'},
-                {'type': tabs.SyllabusTab.type},
+                {'type': 'syllabus'},
             ],
             # with external discussion
             [
@@ -350,32 +348,6 @@ class TextbooksTestCase(TabTestCase):
         self.check_can_display_results(tab, for_authenticated_users_only=True, expected_value=False)
 
 
-class SyllabusTestCase(TabTestCase):
-    """Test cases for Syllabus Tab."""
-
-    def check_syllabus_tab(self, expected_can_display_value):
-        """Helper function for verifying the syllabus tab."""
-
-        name = 'Syllabus'
-        tab = self.check_tab(
-            tab_class=tabs.SyllabusTab,
-            dict_tab={'type': tabs.SyllabusTab.type, 'name': name},
-            expected_name=name,
-            expected_link=self.reverse('syllabus', args=[self.course.id.to_deprecated_string()]),
-            expected_tab_id=tabs.SyllabusTab.type,
-            invalid_dict_tab=None,
-        )
-        self.check_can_display_results(tab, expected_value=expected_can_display_value)
-
-    def test_syllabus_tab_enabled(self):
-        self.course.syllabus_present = True
-        self.check_syllabus_tab(True)
-
-    def test_syllabus_tab_disabled(self):
-        self.course.syllabus_present = False
-        self.check_syllabus_tab(False)
-
-
 class KeyCheckerTestCase(unittest.TestCase):
     """Test cases for KeyChecker class"""
 
@@ -416,17 +388,22 @@ class NeedNameTestCase(unittest.TestCase):
 class CourseTabListTestCase(TabListTestCase):
     """Testing the generator method for iterating through displayable tabs"""
 
+    def has_syllabus_tab(self, tabs):
+        for tab in tabs:
+            if tab.type == 'syllabus':
+                return True
+
     def test_initialize_default_without_syllabus(self):
         self.course.tabs = []
         self.course.syllabus_present = False
         xmodule_tabs.CourseTabList.initialize_default(self.course)
-        self.assertTrue(tabs.SyllabusTab() not in self.course.tabs)
+        self.assertFalse(self.has_syllabus_tab(self.course.tabs))
 
     def test_initialize_default_with_syllabus(self):
         self.course.tabs = []
         self.course.syllabus_present = True
         xmodule_tabs.CourseTabList.initialize_default(self.course)
-        self.assertTrue(tabs.SyllabusTab() in self.course.tabs)
+        self.assertTrue(self.has_syllabus_tab(self.course.tabs))
 
     def test_initialize_default_with_external_link(self):
         self.course.tabs = []

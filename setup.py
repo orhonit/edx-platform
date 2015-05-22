@@ -37,7 +37,7 @@ setup(
             'staff_grading = lms.djangoapps.open_ended_grading.views:StaffGradingTab',
             'open_ended = lms.djangoapps.open_ended_grading.views:OpenEndedGradingTab',
             'notes = lms.djangoapps.notes.views:NotesTab',
-            'syllabus = openedx.core.djangoapps.course_views.course_views:SyllabusTab',
+            'syllabus = lms.djangoapps.courseware.tabs:SyllabusTab',
         ],
         "openedx.user_partition_scheme": [
             "random = openedx.core.djangoapps.user_api.partition_schemes:RandomUserPartitionScheme",

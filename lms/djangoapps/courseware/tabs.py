@@ -6,8 +6,23 @@ from django.conf import settings
 from django.utils.translation import ugettext as _
 
 from courseware.entrance_exams import user_must_complete_entrance_exam
-from openedx.core.djangoapps.course_views.course_views import CourseViewTypeManager
+from openedx.core.djangoapps.course_views.course_views import CourseViewTypeManager, CourseViewType
 from xmodule.tabs import CourseTabList, CourseViewTab
+
+
+class SyllabusTab(CourseViewType):
+    """
+    A tab for the course syllabus.
+    """
+    name = 'syllabus'
+    title = _('Syllabus')
+    priority = 30
+    view_name = 'syllabus'
+    is_persistent = False
+
+    @classmethod
+    def is_enabled(self, course, settings, user=None):
+        return hasattr(course, 'syllabus_present') and course.syllabus_present
 
 
 def get_course_tab_list(request, course):

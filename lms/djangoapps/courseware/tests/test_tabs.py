@@ -5,6 +5,7 @@ Note: Tests covering workflows in the actual tabs.py file begin after line 100
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.http import Http404
+from django.test import RequestFactory
 from mock import MagicMock, Mock, patch
 from nose.plugins.attrib import attr
 from opaque_keys.edx.locations import SlashSeparatedCourseKey
@@ -276,3 +277,25 @@ class TextBookTabsTestCase(LoginEnrollmentTestCase, ModuleStoreTestCase):
                 self.assertEqual(tab_link, expected_link)
                 num_of_textbooks_found += 1
         self.assertEqual(num_of_textbooks_found, self.num_textbooks)
+
+
+class SyllabusTestCase(ModuleStoreTestCase):
+    """Test cases for Syllabus Tab."""
+    def setUp(self):
+        super(SyllabusTestCase, self).setUp()
+        self.course = CourseFactory.create()
+        self.user = UserFactory()
+
+    def has_syllabus_tab(self):
+        request = RequestFactory().request()
+        request.user = self.user
+        all_tabs = get_course_tab_list(request, self.course)
+        return any([tab.name == 'Syllabus' for tab in all_tabs])
+
+    def test_syllabus_tab_enabled(self):
+        self.course.syllabus_present = True
+        self.assertTrue(self.has_syllabus_tab())
+
+    def test_syllabus_tab_disabled(self):
+        self.course.syllabus_present = False
+        self.assertFalse(self.has_syllabus_tab())

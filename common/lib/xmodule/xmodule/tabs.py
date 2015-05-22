@@ -196,7 +196,7 @@ class CourseViewTab(CourseTab):
 
     def __init__(self, course_view_type, tab_dict=None):
         super(CourseViewTab, self).__init__(
-            name=tab_dict['name'] if tab_dict else course_view_type.title,
+            name=tab_dict.get('name', course_view_type.title) if tab_dict else course_view_type.title,
             tab_id=course_view_type.name,
             link_func=link_reverse_func(course_view_type.view_name),
         )

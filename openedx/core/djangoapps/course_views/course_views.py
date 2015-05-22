@@ -458,23 +458,3 @@ class HtmlTextbookTabs(TextbookTabsBase):
                     'html_book', args=[course.id.to_deprecated_string(), index]
                 ),
             )
-
-
-class SyllabusTab(CourseTab):
-    """
-    A tab for the course syllabus.
-    """
-    type = 'syllabus'
-    name = 'syllabus'
-    priority = None
-
-    def is_enabled(self, course, settings, user=None):
-        return hasattr(course, 'syllabus_present') and course.syllabus_present
-
-    def __init__(self, tab_dict=None):  # pylint: disable=unused-argument
-        super(SyllabusTab, self).__init__(
-            # Translators: "Syllabus" appears on a tab that, when clicked, opens the syllabus of the course.
-            name=_('Syllabus'),
-            tab_id=self.type,
-            link_func=link_reverse_func(self.type),
-        )
