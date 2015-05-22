@@ -2,7 +2,6 @@
 Test the publish code (mostly testing that publishing doesn't result in orphans)
 """
 import os
-import re
 import unittest
 import ddt
 import uuid
@@ -13,7 +12,6 @@ from nose.plugins.attrib import attr
 from contextlib import contextmanager
 import xml.etree.ElementTree as ET
 
-from opaque_keys.edx.locator import CourseLocator
 from xmodule.exceptions import InvalidVersionError
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.exceptions import ItemNotFoundError
@@ -201,7 +199,9 @@ class DraftPublishedOpTestCourseSetup(unittest.TestCase):
                 )
             }
 
-        def _add_course_db_entry(parent_type, parent_id, block_id, block_type, idx, child_block_type, child_block_id_base):
+        def _add_course_db_entry(
+            parent_type, parent_id, block_id, block_type, idx, child_block_type, child_block_id_base
+        ):
             """
             Add a single entry for the course DB referenced by the tests below.
             """
@@ -231,19 +231,27 @@ class DraftPublishedOpTestCourseSetup(unittest.TestCase):
                     publish_item=False,
                     location=self.course.id.make_usage_key(block_type, block_id))
                 )
-                _add_course_db_entry(parent_type, parent_id, block_id, block_type, idx, child_block_type, child_block_type)
+                _add_course_db_entry(
+                    parent_type, parent_id, block_id, block_type, idx, child_block_type, child_block_type
+                )
 
         # Create all the course items on the draft branch.
         with store.branch_setting(ModuleStoreEnum.Branch.draft_preferred):
             # Create course.
-            self.course = CourseFactory.create(org='test_org', number='999', run='test_run', display_name='My Test Course', modulestore=store)
-            #self.course = store.create_course(course_key.org, course_key.course, course_key.run, self.user_id)
+            self.course = CourseFactory.create(
+                org='test_org',
+                number='999',
+                run='test_run',
+                display_name='My Test Course',
+                modulestore=store
+            )
 
-            # Create chapters.
-            _create_binary_structure_items('course', 'chapter', 2, 'sequential')
-            _create_binary_structure_items('chapter', 'sequential', 4, 'vertical')
-            _create_binary_structure_items('sequential', 'vertical', 8, 'html')
-            _create_binary_structure_items('vertical', 'html', 16, '')
+            with store.bulk_operations(self.course.id):
+                # Create chapters.
+                _create_binary_structure_items('course', 'chapter', 2, 'sequential')
+                _create_binary_structure_items('chapter', 'sequential', 4, 'vertical')
+                _create_binary_structure_items('sequential', 'vertical', 8, 'html')
+                _create_binary_structure_items('vertical', 'html', 16, '')
 
         # Create a list of all verticals for convenience.
         block_type = 'vertical'
@@ -345,8 +353,8 @@ class OLXFormatChecker(unittest.TestCase):
                 each value in the dict is a regular expression
                 to match against the named attribute.
         """
-        for attr, regex in attrs.items():
-            self.assertRegexpMatches(element.get(attr), regex)
+        for attribute, regex in attrs.items():
+            self.assertRegexpMatches(element.get(attribute), regex)
 
     def _assert_parsed_xml(self, block_contents, checklist):
         """
@@ -444,8 +452,9 @@ class OLXFormatChecker(unittest.TestCase):
                 index_in_children_list,
                 msg="Index within {} must be passed for draft {} item!".format(parent_type, block_type)
             )
-            parent_url_regex = unicode(course_key.replace().make_usage_key(parent_type, parent_id)).replace('+', '\\+')
-            child_index_regex = str(index_in_children_list)
+            if block_type != 'html':
+                attrs['parent_url'] = unicode(course_key.replace().make_usage_key(parent_type, parent_id)).replace('+', '\\+')
+                attrs['index_in_children_list'] = str(index_in_children_list)
 
         # Form the checked attributes based on the block type.
         if block_type == 'html':
