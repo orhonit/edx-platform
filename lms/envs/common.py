@@ -373,7 +373,7 @@ FEATURES = {
     'ENABLE_ONLOAD_BEACON': False,
 
     # Toggle platform-wide course licensing
-    'LICENSING': False,
+    'LICENSING': True,
 
     # Certificates Web/HTML Views
     'CERTIFICATES_HTML_VIEW': False,
