@@ -186,6 +186,7 @@ class @Calculator
     @hideHint()
 
   handleClickOnHintButton: (e) ->
+    e.preventDefault()
     e.stopPropagation()
     if @hintPopup.hasClass 'shown'
       @hideHint()
