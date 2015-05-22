@@ -1,5 +1,5 @@
 """
-Serializer file for Bookmarks.
+Serializers for Bookmarks.
 """
 from rest_framework import serializers
 
@@ -22,22 +22,23 @@ class BookmarkSerializer(serializers.ModelSerializer):
 
         if fields:
             # Drop any fields that are not specified in the `fields` argument.
-            allowed = set(fields)
-            existing = set(self.fields.keys())
-            for field_name in existing - allowed:
+            required_fields = set(fields)
+            all_fields = set(self.fields.keys())
+            for field_name in all_fields - required_fields:
                 self.fields.pop(field_name)
 
-    id = serializers.SerializerMethodField('get_id')  # pylint: disable=invalid-name
-    path = serializers.Field(source='path')
-    usage_id = serializers.Field(source='usage_key')
+    id = serializers.SerializerMethodField('resource_id')  # pylint: disable=invalid-name
     course_id = serializers.Field(source='course_key')
+    usage_id = serializers.Field(source='usage_key')
+    path = serializers.Field(source='path')
 
     class Meta(object):  # pylint: disable=missing-docstring
+        """ Serializer metadata """
         model = Bookmark
         fields = ("id", "course_id", "usage_id", "display_name", "path", "created")
 
-    def get_id(self, bookmark):
+    def resource_id(self, bookmark):
         """
-        Gets the bookmark id {username, usage_id}.
+        Return the REST resource id: {username, usage_id}.
         """
-        return "%s,%s" % (bookmark.user.username, bookmark.usage_key)
+        return "{0},{1}".format(bookmark.user.username, bookmark.usage_key)

@@ -1,5 +1,5 @@
 """
-This File include tests for bookmarks/models.py
+Tests for bookmarks/models.py
 """
 
 from opaque_keys.edx.keys import UsageKey

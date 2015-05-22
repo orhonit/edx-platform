@@ -17,7 +17,7 @@ class Migration(SchemaMigration):
             ('course_key', self.gf('xmodule_django.models.CourseKeyField')(max_length=255, db_index=True)),
             ('usage_key', self.gf('xmodule_django.models.LocationKeyField')(max_length=255, db_index=True)),
             ('display_name', self.gf('django.db.models.fields.CharField')(default='', max_length=255)),
-            ('_path', self.gf('django.db.models.fields.TextField')(db_column='path', blank=True)),
+            ('path', self.gf('jsonfield.fields.JSONField')()),
         ))
         db.send_create_signal('bookmarks', ['Bookmark'])
 
@@ -59,12 +59,12 @@ class Migration(SchemaMigration):
         },
         'bookmarks.bookmark': {
             'Meta': {'object_name': 'Bookmark'},
-            '_path': ('django.db.models.fields.TextField', [], {'db_column': "'path'", 'blank': 'True'}),
             'course_key': ('xmodule_django.models.CourseKeyField', [], {'max_length': '255', 'db_index': 'True'}),
             'created': ('model_utils.fields.AutoCreatedField', [], {'default': 'datetime.datetime.now'}),
             'display_name': ('django.db.models.fields.CharField', [], {'default': "''", 'max_length': '255'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'modified': ('model_utils.fields.AutoLastModifiedField', [], {'default': 'datetime.datetime.now'}),
+            'path': ('jsonfield.fields.JSONField', [], {}),
             'usage_key': ('xmodule_django.models.LocationKeyField', [], {'max_length': '255', 'db_index': 'True'}),
             'user': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['auth.User']"})
         },

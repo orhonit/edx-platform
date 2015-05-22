@@ -10,9 +10,8 @@ from student.tests.factories import UserFactory
 from opaque_keys.edx.locations import SlashSeparatedCourseKey
 from ..models import Bookmark
 
-# pylint: disable=invalid-name
-course_id = SlashSeparatedCourseKey(u'edX', u'test_course', u'test')
-location = partial(course_id.make_usage_key, u'problem')
+COURSE_KEY = SlashSeparatedCourseKey(u'edX', u'test_course', u'test')
+LOCATION = partial(COURSE_KEY.make_usage_key, u'problem')
 
 
 class BookmarkFactory(DjangoModelFactory):
@@ -20,7 +19,7 @@ class BookmarkFactory(DjangoModelFactory):
     FACTORY_FOR = Bookmark
 
     user = SubFactory(UserFactory)
-    course_key = course_id
-    usage_key = location('usage_id')
+    course_key = COURSE_KEY
+    usage_key = LOCATION('usage_id')
     display_name = ""
-    path = dict()
+    path = list()

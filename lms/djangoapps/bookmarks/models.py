@@ -2,13 +2,12 @@
 This File contains Model for Bookmarks.
 """
 
-import json
-
 from django.contrib.auth.models import User
 from django.db import models
 
-from model_utils.models import TimeStampedModel
+from jsonfield.fields import JSONField
 
+from model_utils.models import TimeStampedModel
 from xmodule.modulestore.django import modulestore
 from xmodule_django.models import CourseKeyField, LocationKeyField
 
@@ -17,38 +16,22 @@ class Bookmark(TimeStampedModel):
     """
     Bookmarks model.
     """
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, db_index=True)
     course_key = CourseKeyField(max_length=255, db_index=True)
     usage_key = LocationKeyField(max_length=255, db_index=True)
     display_name = models.CharField(max_length=255, default="", help_text="Display name of XBlock")
-    _path = models.TextField(db_column='path', blank=True, help_text="JSON, breadcrumbs to the XBlock")
-
-    @property
-    def path(self):
-        """
-        Parse the path json from the _path field and return it.
-        """
-        if not self._path:
-            self._path = dict()
-        return json.loads(self._path)
-
-    @path.setter
-    def path(self, value):
-        """
-        Sets the Parsed path to json.
-        """
-        self._path = json.dumps(value)
+    path = JSONField()  # "JSON, breadcrumbs to the XBlock"
 
     @classmethod
     def create(cls, bookmarks_data, block=None):
         """
-        Create the bookmark object.
+        Create a bookmark object.
         """
         if not block:
             block = modulestore().get_item(bookmarks_data['usage_key'])
 
         bookmarks_data['display_name'] = block.display_name
-        bookmarks_data['_path'] = json.dumps(cls.get_path(block))
+        bookmarks_data['path'] = cls.get_path(block)
 
         bookmark, __ = cls.objects.get_or_create(**bookmarks_data)
         return bookmark
