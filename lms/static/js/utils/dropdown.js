@@ -1,22 +1,11 @@
 var edx = edx || {},
-    host = window.location.host.substring(0, window.location.host.indexOf(':')),
     Dropdown = (function() {
 
         var dropdown = {
 
-            opts: {
-                page: $(document),
-                midpoint: ($(window).width() / 2),
-                button: $('.button-more.has-dropdown'),
-                button_active: 'is-active',
-                menu: $('.dropdown-menu'),
-                menu_inactive: 'is-hidden',
-                menu_active: 'is-visible',
-                menu_align: 'align-',
-                text_align: 'control-text-align'
-            },
-
             init: function(parent) {
+                dropdown.optsSet();
+
                 if (dropdown.opts.button.length && dropdown.opts.menu.length) {
 
                     if (parent) {
@@ -28,7 +17,7 @@ var edx = edx || {},
                 }
             },
 
-            optsReset: function() {
+            optsSet: function() {
                 dropdown.opts = {
                     page: $(document),
                     midpoint: ($(window).width() / 2),
@@ -190,8 +179,7 @@ var edx = edx || {},
         };
 
         return {
-            init: dropdown.init,
-            optsReset: dropdown.optsReset // Needed for the Jasmine test to redeclare the variables after the fixture loads
+            init: dropdown.init
         };
 
     })();
