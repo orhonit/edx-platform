@@ -524,6 +524,8 @@ $light-border: 1px solid $gray-l5;
     min-height: ($baseline*2.25);
 
     .code-text {
+      @include clearfix();
+
       a {
         @extend %t-copy-lead1;
         @extend %t-strong;

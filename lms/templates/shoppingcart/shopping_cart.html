@@ -45,6 +45,14 @@ from django.utils.translation import ungettext
 
     <article class="wrapper confirm-enrollment shopping-cart cart-view" aria-label="${_('Shopping Cart')}">
       % for item, course in shoppingcart_items:
+        <%
+          unit_cost = _(
+            "{currency_symbol}{price}"
+          ).format(
+            currency_symbol=currency_symbol,
+            price="{0:0.2f}".format(item.unit_cost)
+          )
+        %>
         % if loop.index > 0 :
           <hr>
         %endif
@@ -70,10 +78,21 @@ from django.utils.translation import ungettext
               <div class="col-1">
                   % if item.list_price != None:
                     <% discount_applied = True %>
-                    <div class="price">${_('Price per student:')} <span class="line-through">  ${currency_symbol}${"{0:0.2f}".format(item.list_price)}</span></div>
-                    <div class="price green">${_('Discount Applied:')} <span>  ${currency_symbol}${"{0:0.2f}".format(item.unit_cost)} </span></div>
+                    <div class="price">${_('Price per student:')}
+                      <span class="line-through">
+                        ## Translators: currency_symbol l is a symbol indicating type of currency, ex "$".
+                        ## This string would look like this when all variables are in:
+                        ## "$500.00"
+                        ${_("{currency_symbol}{price}").format(currency_symbol=currency_symbol, price="{0:0.2f}".format(item.list_price))}
+                      </span>
+                    </div>
+                    <div class="price green">${_('Discount Applied:')}
+                      <span>${unit_cost}</span>
+                    </div>
                   % else:
-                    <div class="price">${_('Price per student:')} <span>  ${currency_symbol}${"{0:0.2f}".format(item.unit_cost)}</span></div>
+                    <div class="price">${_('Price per student:')}
+                      <span>${unit_cost}</span>
+                    </div>
                   % endif
               </div>
               <div class="col-2">
@@ -112,7 +131,14 @@ from django.utils.translation import ungettext
                 <button type="submit" class="blue-border" id="submit-reset-redemption">${_('Reset')}</button>
               </div>
             % endif
-                <span class="pull-right">${_('TOTAL:')} <b id="total-amount" data-amount="${'{0:0.2f}'.format(amount)}">${currency_symbol}${"{0:0.2f}".format(amount)} ${currency.upper()}</b></span>
+                <span class="pull-right">${_('TOTAL:')}
+                  <b id="total-amount" data-amount="${'{price:0.2f}'.format(price=amount)}">
+                    ## Translators: currency_symbol l is a symbol indicating type of currency, ex "$". currency_abbr is
+                    ## an abbreviation for the currency, ex "USD". This string would look like this when all variables are in:
+                    ## "$500.00 USD"
+                    ${_("{currency_symbol}{price} {currency_abbr}").format(currency_symbol=currency_symbol, price="{0:0.2f}".format(amount), currency_abbr=currency.upper())}
+                  </b>
+                </span>
             </div>
         </div>
         <div class="col-two">
