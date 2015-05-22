@@ -108,12 +108,6 @@ urlpatterns = patterns(
     ),
 
     url(
-        r'^midcourse_reverify_dash$',
-        views.midcourse_reverify_dash,
-        name="verify_student_midcourse_reverify_dash"
-    ),
-
-    url(
         r'^reverification_window_expired$',
         views.reverification_window_expired,
         name="verify_student_reverification_window_expired"

@@ -1097,33 +1097,6 @@ class ReverifyView(View):
 
 
 @login_required
-def midcourse_reverify_dash(request):
-    """
-    Shows the "course reverification dashboard", which displays the reverification status (must reverify,
-    pending, approved, failed, etc) of all courses in which a student has a verified enrollment.
-    """
-    user = request.user
-    course_enrollment_pairs = []
-    for enrollment in CourseEnrollment.enrollments_for_user(user):
-        try:
-            course_enrollment_pairs.append((modulestore().get_course(enrollment.course_id), enrollment))
-        except ItemNotFoundError:
-            log.error(u"User %s enrolled in non-existent course %s", user.username, enrollment.course_id)
-
-    statuses = ["approved", "pending", "must_reverify", "denied"]
-
-    reverifications = None
-
-    context = {
-        "user_full_name": user.profile.name,
-        'reverifications': reverifications,
-        'referer': request.META.get('HTTP_REFERER'),
-        'billing_email': settings.PAYMENT_SUPPORT_EMAIL,
-    }
-    return render_to_response("verify_student/midcourse_reverify_dash.html", context)
-
-
-@login_required
 @require_POST
 def toggle_failed_banner_off(request):
     """
