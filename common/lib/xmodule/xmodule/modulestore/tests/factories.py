@@ -15,6 +15,7 @@ from opaque_keys.edx.keys import UsageKey
 from xblock.core import XBlock
 from xmodule.tabs import StaticTab
 from xmodule.modulestore import prefer_xmodules, ModuleStoreEnum
+from xmodule.modulestore.django import modulestore
 from xmodule.x_module import DEPRECATION_VSCOMPAT_EVENT
 
 
@@ -421,7 +422,7 @@ class CourseAboutFactory(XModuleFactory):
         """
         user_id = kwargs.pop('user_id', None)
         course_id, course_runtime = kwargs.pop("course_id"), kwargs.pop("course_runtime")
-        store = cls.modulestore
+        store = modulestore()
         for about_key in ABOUT_ATTRIBUTES:
             about_item = store.create_xblock(course_runtime, course_id, 'about', about_key)
             about_item.data = ABOUT_ATTRIBUTES[about_key]
