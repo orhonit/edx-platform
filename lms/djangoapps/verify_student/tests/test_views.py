@@ -1670,56 +1670,6 @@ class TestReverifyView(ModuleStoreTestCase):
         self.assertTrue(context['error'])
 
 
-class TestMidCourseReverifyView(ModuleStoreTestCase):
-    """
-    Tests for the midcourse reverification views.
-    """
-    def setUp(self):
-        super(TestMidCourseReverifyView, self).setUp()
-
-        self.user = UserFactory.create(username="rusty", password="test")
-        self.client.login(username="rusty", password="test")
-        self.course_key = SlashSeparatedCourseKey("Robot", "999", "Test_Course")
-        CourseFactory.create(org='Robot', number='999', display_name='Test Course')
-
-        patcher = patch('student.models.tracker')
-        self.mock_tracker = patcher.start()
-        self.addCleanup(patcher.stop)
-
-    @patch('verify_student.views.render_to_response', render_mock)
-    def test_midcourse_reverify_get(self):
-        url = reverse('verify_student_midcourse_reverify',
-                      kwargs={"course_id": self.course_key.to_deprecated_string()})
-        response = self.client.get(url)
-
-        self.mock_tracker.emit.assert_any_call(  # pylint: disable=maybe-no-member
-            'edx.course.enrollment.mode_changed',
-            {
-                'user_id': self.user.id,
-                'course_id': self.course_key.to_deprecated_string(),
-                'mode': "verified",
-            }
-        )
-
-        # Check that user entering the reverify flow was logged, and that it was the last call
-        self.mock_tracker.emit.assert_called_with(  # pylint: disable=maybe-no-member
-            'edx.course.enrollment.reverify.started',
-            {
-                'user_id': self.user.id,
-                'course_id': self.course_key.to_deprecated_string(),
-                'mode': "verified",
-            }
-        )
-
-        self.assertTrue(self.mock_tracker.emit.call_count, 2)  # pylint: disable=no-member
-
-        self.mock_tracker.emit.reset_mock()  # pylint: disable=no-member
-
-        self.assertEquals(response.status_code, 200)
-        ((_template, context), _kwargs) = render_mock.call_args  # pylint: disable=unpacking-non-sequence
-        self.assertFalse(context['error'])
-
-
 class TestInCourseReverifyView(ModuleStoreTestCase):
     """
     Tests for the incourse reverification views.

@@ -96,12 +96,6 @@ urlpatterns = patterns(
     ),
 
     url(
-        r'^midcourse_reverify/{}/$'.format(settings.COURSE_ID_PATTERN),
-        views.MidCourseReverifyView.as_view(),  # pylint: disable=no-value-for-parameter
-        name="verify_student_midcourse_reverify"
-    ),
-
-    url(
         r'^reverification_confirmation$',
         views.reverification_submission_confirmation,
         name="verify_student_reverification_confirmation"
