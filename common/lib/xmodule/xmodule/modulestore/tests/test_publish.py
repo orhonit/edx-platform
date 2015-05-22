@@ -223,14 +223,13 @@ class DraftPublishedOpTestCourseSetup(unittest.TestCase):
                     parent_id = _make_block_id(parent_type, idx / 2)
                 parent_item = getattr(self, parent_id)
                 block_id = _make_block_id(block_type, idx)
-                #setattr(self, block_id, _create_child(parent_item, block_type, block_id))
                 setattr(self, block_id, ItemFactory.create(
                     parent_location=parent_item.location,
                     category=block_type,
                     modulestore=store,
                     publish_item=False,
-                    location=self.course.id.make_usage_key(block_type, block_id))
-                )
+                    location=self.course.id.make_usage_key(block_type, block_id)
+                ))
                 _add_course_db_entry(
                     parent_type, parent_id, block_id, block_type, idx, child_block_type, child_block_type
                 )
@@ -267,6 +266,7 @@ class DraftPublishedOpTestCourseSetup(unittest.TestCase):
 
     def setUp(self):
         self.user_id = -3
+        self.course = None
 
         # For convenience, maintain a list of (block_type, block_id) pairs for all verticals/units.
         self.all_verticals = []
@@ -453,7 +453,9 @@ class OLXFormatChecker(unittest.TestCase):
                 msg="Index within {} must be passed for draft {} item!".format(parent_type, block_type)
             )
             if block_type != 'html':
-                attrs['parent_url'] = unicode(course_key.replace().make_usage_key(parent_type, parent_id)).replace('+', '\\+')
+                attrs['parent_url'] = unicode(
+                    course_key.replace().make_usage_key(parent_type, parent_id)
+                ).replace('+', '\\+')
                 attrs['index_in_children_list'] = str(index_in_children_list)
 
         # Form the checked attributes based on the block type.
