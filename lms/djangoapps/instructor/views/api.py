@@ -59,8 +59,10 @@ from shoppingcart.models import (
 )
 from student.models import (
     CourseEnrollment, unique_id_for_user, anonymous_id_for_user,
-    UserProfile, Registration, EntranceExamConfiguration
-)
+    UserProfile, Registration, EntranceExamConfiguration,
+    ManualEnrollmentAudit, UN_ENROLLED_TO_ALLOWED_TO_ENROLL, ALLOWED_TO_ENROLL_TO_ENROLL,
+    ENROLL_TO_ENROLL, ENROLL_TO_UN_ENROLL, UN_ENROLL_TO_ENROLL, UN_ENROLL_TO_UN_ENROLL, ALLOWED_TO_ENROLL_TO_UN_ENROLL,
+    DEFAULT_TRANSITION_STATE)
 import instructor_task.api
 from instructor_task.api_helper import AlreadyRunningError
 from instructor_task.models import ReportStore
@@ -517,10 +519,13 @@ def students_update_enrollment(request, course_id):
     """
     course_id = SlashSeparatedCourseKey.from_deprecated_string(course_id)
     action = request.POST.get('action')
+    reason = request.POST.get('reason')
     identifiers_raw = request.POST.get('identifiers')
     identifiers = _split_input_list(identifiers_raw)
     auto_enroll = request.POST.get('auto_enroll') in ['true', 'True', True]
     email_students = request.POST.get('email_students') in ['true', 'True', True]
+    enrollment_obj = None
+    state_transition = DEFAULT_TRANSITION_STATE
 
     email_params = {}
     if email_students:
@@ -546,15 +551,44 @@ def students_update_enrollment(request, course_id):
             # validity (obviously, cannot check if email actually /exists/,
             # simply that it is plausibly valid)
             validate_email(email)  # Raises ValidationError if invalid
-
             if action == 'enroll':
-                before, after = enroll_email(
+                before, after, enrollment_obj = enroll_email(
                     course_id, email, auto_enroll, email_students, email_params, language=language
                 )
+                before_enrollment = before.to_dict()['enrollment']
+                before_user_registered = before.to_dict()['user']
+                before_allowed = before.to_dict()['allowed']
+                after_enrollment = after.to_dict()['enrollment']
+                after_allowed = after.to_dict()['allowed']
+
+                if before_user_registered:
+                    if after_enrollment:
+                        if before_enrollment:
+                            state_transition = ENROLL_TO_ENROLL
+                        else:
+                            if before_allowed:
+                                state_transition = ALLOWED_TO_ENROLL_TO_ENROLL
+                            else:
+                                state_transition = UN_ENROLL_TO_ENROLL
+                else:
+                    if after_allowed:
+                        state_transition = UN_ENROLLED_TO_ALLOWED_TO_ENROLL
+
             elif action == 'unenroll':
                 before, after = unenroll_email(
                     course_id, email, email_students, email_params, language=language
                 )
+                before_enrollment = before.to_dict()['enrollment']
+                before_allowed = before.to_dict()['allowed']
+
+                if before_enrollment:
+                    state_transition = ENROLL_TO_UN_ENROLL
+                else:
+                    if before_allowed:
+                        state_transition = ALLOWED_TO_ENROLL_TO_UN_ENROLL
+                    else:
+                        state_transition = UN_ENROLL_TO_UN_ENROLL
+
             else:
                 return HttpResponseBadRequest(strip_tags(
                     "Unrecognized action '{}'".format(action)
@@ -579,6 +613,7 @@ def students_update_enrollment(request, course_id):
             })
 
         else:
+            ManualEnrollmentAudit.create_manual_enrollment_audit(request.user, state_transition, reason, enrollment_obj)
             results.append({
                 'identifier': identifier,
                 'before': before.to_dict(),
